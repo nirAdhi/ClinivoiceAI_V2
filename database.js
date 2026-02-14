@@ -3,16 +3,33 @@ require('dotenv').config();
 const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
 
-const dbConfig = {
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 3306,
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: 'clinivoice_v2',
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-};
+// Support Railway DATABASE_URL format
+let dbConfig;
+if (process.env.DATABASE_URL) {
+    // Parse Railway MySQL URL: mysql://user:password@host:port/database
+    const url = new URL(process.env.DATABASE_URL);
+    dbConfig = {
+        host: url.hostname,
+        port: url.port || 3306,
+        user: url.username,
+        password: url.password,
+        database: url.pathname.replace('/', ''),
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0
+    };
+} else {
+    dbConfig = {
+        host: process.env.DB_HOST || 'localhost',
+        port: process.env.DB_PORT || 3306,
+        user: process.env.DB_USER || 'root',
+        password: process.env.DB_PASSWORD || '',
+        database: 'clinivoice_v2',
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0
+    };
+}
 
 const pool = mysql.createPool(dbConfig);
 const promisePool = pool.promise();
