@@ -17,6 +17,11 @@ app.use(express.static(path.join(__dirname)));
 app.use('/desktop', express.static(path.join(__dirname, 'desktop', 'dist')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Redirect root to /desktop
+app.get('/', (req, res) => {
+    res.redirect('/desktop');
+});
+
 // SPA fallback for /desktop routes
 app.get('/desktop/*', (req, res) => {
     res.sendFile(path.join(__dirname, 'desktop', 'dist', 'index.html'));
