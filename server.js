@@ -13,7 +13,9 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
-app.use(express.static(path.join(__dirname)));
+
+// Serve static files from desktop/dist
+app.use('/desktop/assets', express.static(path.join(__dirname, 'desktop', 'dist', 'assets')));
 app.use('/desktop', express.static(path.join(__dirname, 'desktop', 'dist')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -22,7 +24,7 @@ app.get('/', (req, res) => {
     res.redirect('/desktop');
 });
 
-// SPA fallback for /desktop routes
+// SPA fallback for /desktop routes (must be after static assets)
 app.get('/desktop/*', (req, res) => {
     res.sendFile(path.join(__dirname, 'desktop', 'dist', 'index.html'));
 });
