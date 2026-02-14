@@ -5,7 +5,7 @@ function AdminPanel({ onClose }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editUserId, setEditUserId] = useState(null)
-  const [form, setForm] = useState({ name: '', email: '', domain: 'medical', role: 'clinician', password: '' })
+  const [form, setForm] = useState({ name: '', email: '', domain: 'dental', role: 'clinician', password: '' })
 
   const fetchUsers = async () => {
     try {
@@ -28,7 +28,7 @@ function AdminPanel({ onClose }) {
     setForm({
       name: u.name || '',
       email: u.email || '',
-      domain: u.domain || 'medical',
+      domain: u.domain || 'dental',
       role: u.role || 'clinician',
       password: ''
     })
@@ -98,7 +98,6 @@ function AdminPanel({ onClose }) {
                     ) : (u.email || '-')}</td>
                     <td>{editUserId === u.user_id ? (
                       <select value={form.domain} onChange={e=>setForm({ ...form, domain: e.target.value })}>
-                        <option value="medical">medical</option>
                         <option value="dental">dental</option>
                       </select>
                     ) : u.domain}</td>

@@ -8,7 +8,7 @@ const dbConfig = {
     port: process.env.DB_PORT || 3306,
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'clinivoice',
+    database: 'clinivoice_v2',
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
@@ -43,6 +43,7 @@ async function initializeTables() {
                 user_id VARCHAR(255) NOT NULL,
                 patient_id INT,
                 domain VARCHAR(50) NOT NULL,
+                tooth_number VARCHAR(100),
                 audio_url TEXT,
                 transcription TEXT,
                 ai_notes TEXT,
@@ -74,11 +75,17 @@ async function initializeTables() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         `);
 
-        // Ensure legacy tables have missing columns (MySQL <8.0 lacks IF NOT EXISTS)
+        // Ensure legacy tables have missing columns
         try {
             await promisePool.query('ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)');
         } catch (e) {
             // ER_DUP_FIELDNAME = column already exists: safe to ignore
+            if (e.code !== 'ER_DUP_FIELDNAME') throw e;
+        }
+        // Add tooth_number column if missing
+        try {
+            await promisePool.query('ALTER TABLE sessions ADD COLUMN tooth_number VARCHAR(100)');
+        } catch (e) {
             if (e.code !== 'ER_DUP_FIELDNAME') throw e;
         }
         // Ensure optional columns exist on legacy schemas
@@ -174,6 +181,7 @@ const updateSession = async (id, data) => {
     if (data.status !== undefined) { updates.push('status = ?'); params.push(data.status); }
     if (data.audio_url !== undefined) { updates.push('audio_url = ?'); params.push(data.audio_url); }
     if (data.duration !== undefined) { updates.push('duration = ?'); params.push(data.duration); }
+    if (data.tooth_number !== undefined) { updates.push('tooth_number = ?'); params.push(data.tooth_number); }
 
     params.push(id);
     const sql = `UPDATE sessions SET ${updates.join(', ')} WHERE id = ?`;

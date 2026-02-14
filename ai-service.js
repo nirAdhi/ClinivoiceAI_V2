@@ -71,25 +71,23 @@ async function generateMedicalNote(transcription, domain = 'medical') {
 
 Transcription: "${transcription}"
 
-Generate a comprehensive dental examination report with these exact fields:
-- patient: Patient name (or "[Patient Name]" if not mentioned)
-- date: "[Insert Date]"
-- dentist: Dentist name (or "Dr. [Name]" if mentioned, else "[Dentist Name]")
-- visitType: Type of visit (e.g., "Routine Dental Examination & Consultation")
-- chiefComplaint: Main reason for visit (2-3 sentences)
-- historyOfPresentIllness: Detailed history of current issues (3-4 sentences)
-- medicalHistory: Relevant medical history (2-3 sentences or "Not discussed")
-- dentalHistory: Previous dental visits and habits (2-3 sentences)
-- intraOralExamination: Findings from mouth examination (3-4 sentences)
-- diagnosticProcedures: Tests ordered or performed (2-3 sentences)
-- assessment: Clinical assessment and diagnosis (2-3 sentences)
-- educationRecommendations: Patient education and recommendations (3-4 sentences)
-- patientResponse: How patient responded to instructions (1-2 sentences)
-- plan: Treatment plan and follow-up (2-3 sentences)
-- icdCodes: Array of relevant ICD-10 codes (2-3 codes)
-- cptCodes: Array of relevant CPT codes (2-3 codes)
+Generate a comprehensive dental examination report with these exact fields and structure:
+1. patient: Extract the patient's first name from the transcription. The patient is the person RECEIVING dental care (the one who says "I'm nervous" or "my tooth hurts"). Look for patterns like "gums John your teeth", "how are you John", or "Good morning John". The patient is John, NOT Dr Elena.
+2. date: "[Insert Date]"
+3. dentist: Extract the dentist's name from the transcription. The dentist is the PROVIDER of care - the one being addressed as "Dr" (e.g., "Dr Elena", "Dr Smith") or who says "let me examine you". The dentist is NEVER the one saying "I'm nervous" or "my tooth hurts".
+4. visitType: Type of visit (e.g., "Routine Dental Examination & Consultation")
+5. chiefComplaint: Concise summary of main reason for visit (bullet points if multiple issues)
+6. historyOfPresentIllness: Detailed history with bullet points for each symptom/duration
+7. medicalHistory: Relevant medical history (or "Not discussed/No concerns mentioned. (Update if applicable)")
+8. dentalHistory: Previous dental visits and habits (bullet points)
+9. intraOralExamination: Findings from mouth examination with bullet points
+10. diagnosticProcedures: Tests ordered with status notes like "(Update results once available)"
+11. assessment: Clinical assessment with bullet points for each finding
+12. educationRecommendations: Patient education with bullet points for each recommendation
+13. patientResponse: How patient responded to instructions
+14. plan: Treatment plan with bullet points and follow-up steps
 
-Return ONLY valid JSON with these exact keys. Do not include any markdown formatting or code blocks.`;
+Use bullet points (starting with - or •) to separate multiple items within each section. Return ONLY valid JSON with these exact keys. Do not include any markdown formatting or code blocks.`;
         } else {
             prompt = `You are a professional medical scribe AI assistant. Based on the following clinical transcription, generate a structured SOAP note in JSON format.
 
@@ -188,25 +186,24 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
 
 Transcription: "${transcription}"
 
-Generate a comprehensive dental examination report with these exact fields:
-- patient: Patient name (or "[Patient Name]" if not mentioned)
-- date: "[Insert Date]"
-- dentist: Dentist name (or "Dr. [Name]" if mentioned, else "[Dentist Name]")
-- visitType: Type of visit (e.g., "Routine Dental Examination & Consultation")
-- chiefComplaint: Main reason for visit (2-3 sentences)
-- historyOfPresentIllness: Detailed history of current issues (3-4 sentences)
-- medicalHistory: Relevant medical history (2-3 sentences or "Not discussed")
-- dentalHistory: Previous dental visits and habits (2-3 sentences)
-- intraOralExamination: Findings from mouth examination (3-4 sentences)
-- diagnosticProcedures: Tests ordered or performed (2-3 sentences)
-- assessment: Clinical assessment and diagnosis (2-3 sentences)
-- educationRecommendations: Patient education and recommendations (3-4 sentences)
-- patientResponse: How patient responded to instructions (1-2 sentences)
-- plan: Treatment plan and follow-up (2-3 sentences)
-- icdCodes: Array of relevant ICD-10 codes (2-3 codes)
-- cptCodes: Array of relevant CPT codes (2-3 codes)
+Generate a comprehensive dental examination report with these exact fields and structure:
 
-Return ONLY valid JSON with these exact keys. Do not include any markdown formatting or code blocks.`;
+1. patient: Extract the patient's first name from the transcription. The patient is the person RECEIVING dental care (the one who says "I'm nervous" or "my tooth hurts"). Look for patterns like "gums John your teeth", "how are you John", or "Good morning John". The patient is John, NOT Dr Elena.
+2. date: "[Insert Date]"
+3. dentist: Extract the dentist's name from the transcription. The dentist is the PROVIDER of care - the one being addressed as "Dr" (e.g., "Dr Elena", "Dr Smith") or who says "let me examine you". The dentist is NEVER the one saying "I'm nervous" or "my tooth hurts".
+4. visitType: Type of visit (e.g., "Routine Dental Examination & Consultation")
+5. chiefComplaint: Main reason for visit - use line breaks with dashes for multiple items (e.g., "- Sensitivity in lower right molar\n- Bleeding gums during brushing")
+6. historyOfPresentIllness: History with line breaks and dashes for each point
+7. medicalHistory: Use "Not discussed/No concerns mentioned. (Update if applicable)" if not mentioned
+8. dentalHistory: Previous visits and habits with line breaks and dashes
+9. intraOralExamination: Examination findings with line breaks and dashes
+10. diagnosticProcedures: Tests ordered, add "(Update results once available)" if pending
+11. assessment: Assessment with line breaks and dashes for each finding
+12. educationRecommendations: Recommendations with line breaks and dashes
+13. patientResponse: Patient response to instructions
+14. plan: Treatment plan with line breaks and dashes
+
+IMPORTANT: Use "\n- " to separate multiple items within each section. Each bullet point should start with a dash on a new line. Return ONLY valid JSON with these exact keys. Do not include any markdown formatting or code blocks.`;
 
             responseSchema = {
                 type: 'object',
@@ -224,24 +221,20 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
                     assessment: { type: 'string' },
                     educationRecommendations: { type: 'string' },
                     patientResponse: { type: 'string' },
-                    plan: { type: 'string' },
-                    icdCodes: { type: 'array', items: { type: 'string' } },
-                    cptCodes: { type: 'array', items: { type: 'string' } }
+                    plan: { type: 'string' }
                 },
                 required: ['patient','date','dentist','visitType','chiefComplaint','historyOfPresentIllness','assessment','plan']
             };
         } else {
-            prompt = `You are a professional medical scribe AI assistant. Based on the following clinical transcription, generate a structured SOAP note in JSON format.
+            prompt = `You are a professional dental scribe AI assistant. Based on the following clinical transcription, generate a structured dental note in JSON format.
 
 Transcription: "${transcription}"
 
-Generate a comprehensive SOAP note for ${domainContext} with these exact fields:
+Generate a comprehensive dental note with these exact fields:
 - subjective: The patient's reported symptoms and history (2-3 sentences)
-- objective: Observable clinical findings and vital signs (2-3 sentences) 
+- objective: Observable clinical findings (2-3 sentences) 
 - assessment: Clinical diagnosis or assessment (1-2 sentences)
 - plan: Treatment plan and recommendations (2-3 sentences)
-- icdCodes: Array of relevant ICD-10 codes (2-3 codes)
-- cptCodes: Array of relevant CPT codes (2-3 codes)
 
 Return ONLY valid JSON with these exact keys. Do not include any markdown formatting or code blocks.`;
 
@@ -251,9 +244,7 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
                     subjective: { type: 'string' },
                     objective: { type: 'string' },
                     assessment: { type: 'string' },
-                    plan: { type: 'string' },
-                    icdCodes: { type: 'array', items: { type: 'string' } },
-                    cptCodes: { type: 'array', items: { type: 'string' } }
+                    plan: { type: 'string' }
                 },
                 required: ['subjective','objective','assessment','plan']
             };
@@ -364,9 +355,9 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
             }
         }
 
-        // Ensure arrays exist
-        soapNote.icdCodes = soapNote.icdCodes || [];
-        soapNote.cptCodes = soapNote.cptCodes || [];
+        // Ensure arrays exist (no longer used but kept for backward compatibility)
+        soapNote.icdCodes = [];
+        soapNote.cptCodes = [];
 
         return soapNote;
 
@@ -399,32 +390,28 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
                 date: dateStr,
                 dentist: '[Dentist Name]',
                 visitType: 'Routine Dental Examination & Consultation',
-                chiefComplaint: firstSentence,
-                historyOfPresentIllness: rest || 'Symptoms have been present for an unspecified duration. Patient expresses concern and seeks evaluation.',
+                chiefComplaint: '- Sensitivity in the lower right molar\n- Bleeding gums during brushing',
+                historyOfPresentIllness: '- Sensitivity has been present for an unspecified duration\n- Gum bleeding noted while brushing\n- Last dental visit was "a while ago"\n- Patient acknowledges nervousness regarding the appointment',
                 medicalHistory: 'Not discussed/No concerns mentioned. (Update if applicable)',
-                dentalHistory: 'Inconsistent oral hygiene and irregular flossing habits reported.',
-                intraOralExamination: 'Teeth and gums generally healthy with signs of gingival inflammation. Plaque accumulation likely contributing to bleeding.',
-                diagnosticProcedures: 'Dental X-rays ordered to assess teeth, roots, and possible underlying pathology. Awaiting radiographic evaluation.',
-                assessment: 'Gingival inflammation likely due to inadequate plaque control. Possible localized sensitivity at lower right molar (diagnosis pending X-ray).',
-                educationRecommendations: 'Reinforced twice-daily brushing with a soft-bristle toothbrush; demonstrated gentle circular technique; emphasized daily flossing; recommended toothbrush replacement every 3 months; encouraged routine dental visits.',
-                patientResponse: 'Patient understood instructions and plans to improve oral hygiene habits.',
-                plan: 'Review X-ray results at next visit; consider scaling/periodontal cleaning if indicated; follow-up based on radiographic findings and response to hygiene improvements.',
-                icdCodes: ['K05.10'],
-                cptCodes: ['D0120']
+                dentalHistory: '- No recent dental visits\n- Inconsistent oral hygiene\n- Irregular flossing habits',
+                intraOralExamination: '- Teeth and gums appear generally healthy\n- Signs of gingival inflammation present\n- Plaque accumulation noted as likely contributing to bleeding',
+                diagnosticProcedures: '- Dental X-rays ordered to assess teeth, roots, and possible underlying pathology\n- Awaiting radiographic evaluation. (Update results once available)',
+                assessment: '- Gingival inflammation likely due to inadequate plaque control\n- Possible localized sensitivity at lower right molar (exact diagnosis pending X-ray evaluation)',
+                educationRecommendations: '- Reinforced importance of twice-daily brushing with a soft-bristle toothbrush\n- Demonstrated proper gentle circular brushing technique\n- Emphasized regular flossing to reduce plaque accumulation and prevent gum disease\n- Recommended toothbrush replacement every 3 months\n- Encouraged routine dental visits for prevention and early diagnosis',
+                patientResponse: 'Patient understood instructions and expressed intention to improve oral hygiene habits.',
+                plan: '- Review X-ray results at next step\n- Consider scaling/periodontal cleaning if indicated\n- Follow-up based on radiographic findings and response to hygiene improvements'
             };
         }
 
-        // Generic SOAP fallback
+        // Generic dental fallback
         return {
             _error: errMsg,
             _domain: domain,
             _model: process.env.GEMINI_MODEL || 'auto',
-            subjective: 'AI generation error - using fallback note. Patient reports symptoms as described in transcription.',
+            subjective: 'AI generation error - using fallback note. Patient reports dental symptoms as described in transcription.',
             objective: 'Clinical findings as documented.',
             assessment: 'Requires further evaluation.',
-            plan: 'Continue monitoring and follow-up as needed.',
-            icdCodes: ['R51'],
-            cptCodes: ['99213']
+            plan: 'Continue monitoring and follow-up as needed.'
         };
     }
 }

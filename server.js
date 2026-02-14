@@ -88,6 +88,57 @@ app.post('/api/save-transcript', async (req, res) => {
     }
 });
 
+// Secure save transcript with patient name and dentist name, with salting/hashing
+app.post('/api/save-transcript-secure', async (req, res) => {
+    try {
+        const { userId, domain, patientName, dentistName, transcription, aiSummary } = req.body;
+        if (!userId || !domain || !patientName || !dentistName || !transcription) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        // Generate unique salt for this record
+        const salt = crypto.randomBytes(16).toString('hex');
+        
+        // Create hash of the combined data for integrity verification
+        const dataToHash = `${patientName}:${dentistName}:${transcription}:${Date.now()}`;
+        const hash = crypto.createHmac('sha256', salt + process.env.ENC_KEY || 'default_key')
+            .update(dataToHash)
+            .digest('hex');
+        
+        // Encrypt the data
+        const encryptedTranscription = encryptField(transcription);
+        const encryptedAiSummary = aiSummary ? encryptField(JSON.stringify(aiSummary)) : null;
+        
+        // Store with patient and dentist info
+        const patientId = await db.ensurePatientByName({ name: patientName, domain });
+        const session = await db.createSession({ user_id: userId, patient_id: patientId, domain });
+        
+        // Update with encrypted data and metadata
+        await db.updateSession(session.id, { 
+            transcription: encryptedTranscription, 
+            ai_notes: encryptedAiSummary,
+            status: 'finalized',
+            tooth_number: req.body.toothNumber || null,
+            metadata: JSON.stringify({ 
+                salt, 
+                hash, 
+                dentistName, 
+                patientName,
+                savedAt: new Date().toISOString()
+            })
+        });
+        
+        res.status(201).json({ 
+            sessionId: session.id, 
+            patientId,
+            message: 'Transcript saved securely with encryption' 
+        });
+    } catch (error) {
+        console.error('Secure save error:', error);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
 // Upload voice note (audio/webm) and return a URL
 app.post('/api/upload-voice', upload.single('voice'), async (req, res) => {
     try {
@@ -132,7 +183,7 @@ app.post('/api/sessions', async (req, res) => {
 // -------------------- Auth Routes --------------------
 app.post('/api/register', async (req, res) => {
     try {
-        const { userId, password, domain = 'medical', name = null, email = null } = req.body;
+        const { userId, password, domain = 'dental', name = null, email = null } = req.body;
         if (!userId || !password) {
             return res.status(400).json({ error: 'Missing fields' });
         }
@@ -292,8 +343,15 @@ app.post('/api/patients', async (req, res) => {
 app.get('/api/sessions', async (req, res) => {
     try {
         const sessions = await db.getAllSessions(req.query.userId);
-        res.json(sessions);
+        // Decrypt the encrypted fields before returning
+        const decryptedSessions = sessions.map(session => ({
+            ...session,
+            transcription: session.transcription ? decryptField(session.transcription) : null,
+            ai_notes: session.ai_notes ? decryptField(session.ai_notes) : null
+        }));
+        res.json(decryptedSessions);
     } catch (error) {
+        console.error('Error fetching sessions:', error);
         res.status(500).json({ error: 'Database error' });
     }
 });
