@@ -1,3 +1,4 @@
+
 # Dependencies
 node_modules/
 npm-debug.log*
@@ -5,7 +6,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Production builds
-/desktop/dist/
+# /desktop/dist/  # Commented out for Railway deployment
 /build/
 
 # Environment variables
