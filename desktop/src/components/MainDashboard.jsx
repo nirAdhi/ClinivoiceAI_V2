@@ -116,7 +116,7 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
 
   const openPatientsList = async () => {
     try {
-      const res = await fetch('/api/patients')
+      const res = await fetch(`/api/patients?userId=${user.userId}`)
       if (res.ok) {
         const data = await res.json()
         setPatientsList(data)

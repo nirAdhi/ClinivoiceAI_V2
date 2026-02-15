@@ -41,6 +41,7 @@ async function initializeTables() {
         await promisePool.query(`
             CREATE TABLE IF NOT EXISTS patients (
                 id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id VARCHAR(255) NOT NULL,
                 name VARCHAR(255) NOT NULL,
                 email VARCHAR(255),
                 phone VARCHAR(50),
@@ -49,6 +50,7 @@ async function initializeTables() {
                 notes TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_user_id (user_id),
                 INDEX idx_domain (domain),
                 INDEX idx_name (name)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -105,7 +107,18 @@ async function initializeTables() {
         } catch (e) {
             if (e.code !== 'ER_DUP_FIELDNAME') throw e;
         }
-        // Ensure optional columns exist on legacy schemas
+        // Add user_id column to patients if missing (for user isolation)
+        try {
+            await promisePool.query('ALTER TABLE patients ADD COLUMN user_id VARCHAR(255) NOT NULL DEFAULT \'\'');
+        } catch (e) {
+            if (e.code !== 'ER_DUP_FIELDNAME') throw e;
+        }
+        // Add index on user_id for patients
+        try {
+            await promisePool.query('ALTER TABLE patients ADD INDEX idx_user_id (user_id)');
+        } catch (e) {
+            // Index may already exist
+        }
         try {
             await promisePool.query('ALTER TABLE users ADD COLUMN name VARCHAR(255) NULL');
         } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
@@ -147,27 +160,27 @@ async function initializeTables() {
 initializeTables();
 
 // Database helper functions (simplified for brevity)
-const getAllPatients = async (domain) => {
-    const query = domain ? 'SELECT * FROM patients WHERE domain = ? ORDER BY created_at DESC' : 'SELECT * FROM patients ORDER BY created_at DESC';
-    const params = domain ? [domain] : [];
+const getAllPatients = async (userId) => {
+    const query = userId ? 'SELECT * FROM patients WHERE user_id = ? ORDER BY created_at DESC' : 'SELECT * FROM patients ORDER BY created_at DESC';
+    const params = userId ? [userId] : [];
     const [rows] = await promisePool.query(query, params);
     return rows;
 };
 
 const createPatient = async (data) => {
-    const { name, email, phone, domain, notes, external_id = null } = data;
+    const { name, email, phone, domain, notes, external_id = null, user_id } = data;
     const [result] = await promisePool.query(
-        'INSERT INTO patients (name, email, phone, external_id, domain, notes) VALUES (?, ?, ?, ?, ?, ?)',
-        [name, email, phone, external_id, domain, notes]
+        'INSERT INTO patients (name, email, phone, external_id, domain, notes, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [name, email, phone, external_id, domain, notes, user_id]
     );
     return { id: result.insertId };
 };
 
-// Ensure a patient exists by name within a domain; return patient id
-const ensurePatientByName = async ({ name, domain }) => {
-    const [[row]] = await promisePool.query('SELECT id FROM patients WHERE name = ? AND domain = ? LIMIT 1', [name, domain]);
+// Ensure a patient exists by name for a specific user; return patient id
+const ensurePatientByName = async ({ name, domain, user_id }) => {
+    const [[row]] = await promisePool.query('SELECT id FROM patients WHERE name = ? AND domain = ? AND user_id = ? LIMIT 1', [name, domain, user_id]);
     if (row && row.id) return row.id;
-    const [result] = await promisePool.query('INSERT INTO patients (name, domain) VALUES (?, ?)', [name, domain]);
+    const [result] = await promisePool.query('INSERT INTO patients (name, domain, user_id) VALUES (?, ?, ?)', [name, domain, user_id]);
     return result.insertId;
 };
 
@@ -313,7 +326,7 @@ const clearResetTokenAndSetPassword = async (user_id, newPassword) => {
 
 const getUserStats = async (userId) => {
     const [[sessionsCount]] = await promisePool.query('SELECT COUNT(*) as total FROM sessions WHERE user_id = ?', [userId]);
-    const [[patientsCount]] = await promisePool.query('SELECT COUNT(*) as total FROM patients WHERE domain = (SELECT domain FROM users WHERE user_id = ?)', [userId]);
+    const [[patientsCount]] = await promisePool.query('SELECT COUNT(*) as total FROM patients WHERE user_id = ?', [userId]);
     const [[todayCount]] = await promisePool.query('SELECT COUNT(*) as total FROM sessions WHERE user_id = ? AND DATE(created_at) = CURDATE()', [userId]);
 
     return {

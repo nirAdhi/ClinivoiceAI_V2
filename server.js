@@ -85,7 +85,7 @@ app.post('/api/save-transcript', async (req, res) => {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        const patientId = await db.ensurePatientByName({ name: patientName, domain });
+        const patientId = await db.ensurePatientByName({ name: patientName, domain, user_id: userId });
         const session = await db.createSession({ user_id: userId, patient_id: patientId, domain });
         await db.updateSession(session.id, { transcription: encryptField(transcription), status: 'transcript_only' });
         res.status(201).json({ sessionId: session.id, patientId });
@@ -117,7 +117,7 @@ app.post('/api/save-transcript-secure', async (req, res) => {
         const encryptedAiSummary = aiSummary ? encryptField(JSON.stringify(aiSummary)) : null;
         
         // Store with patient and dentist info
-        const patientId = await db.ensurePatientByName({ name: patientName, domain });
+        const patientId = await db.ensurePatientByName({ name: patientName, domain, user_id: userId });
         const session = await db.createSession({ user_id: userId, patient_id: patientId, domain });
         
         // Update with encrypted data and metadata
@@ -307,7 +307,7 @@ app.get('/api/stats/:userId', async (req, res) => {
 
 app.get('/api/patients', async (req, res) => {
     try {
-        const patients = await db.getAllPatients(req.query.domain);
+        const patients = await db.getAllPatients(req.query.userId);
         res.json(patients);
     } catch (error) {
         res.status(500).json({ error: 'Database error' });
@@ -340,6 +340,10 @@ app.get('/api/patients/:patientId/sessions', async (req, res) => {
 
 app.post('/api/patients', async (req, res) => {
     try {
+        const { userId } = req.body;
+        if (!userId) {
+            return res.status(400).json({ error: 'Missing userId' });
+        }
         const result = await db.createPatient(req.body);
         res.status(201).json(result);
     } catch (error) {
