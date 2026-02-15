@@ -233,11 +233,17 @@
 .login-footer-links {
     display: flex;
     gap: 16px;
-    flex-wrap: wrap;
     justify-content: center;
     color: #64748b;
     font-size: 12px;
     margin-top: 16px;
+}
+
+@media (max-width: 480px) {
+    .login-footer-links {
+        gap: 12px;
+        font-size: 11px;
+    }
 }
 
 .login-card a { 
