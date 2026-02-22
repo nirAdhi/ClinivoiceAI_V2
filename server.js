@@ -105,7 +105,10 @@ wss.on('connection', (ws, req) => {
                     
                     // Notify web client if exists
                     const conn = mobileConnections.get(data.sessionCode);
+                    console.log(`📱 Mobile connected to ${data.sessionCode}, web exists: ${!!conn.web}`);
+                    
                     if (conn.web && conn.web.readyState === WebSocket.OPEN) {
+                        console.log(`📱 Sending mobile_connected to web`);
                         conn.web.send(JSON.stringify({ type: 'mobile_connected', sessionCode: data.sessionCode }));
                     }
                     
@@ -168,19 +171,33 @@ wss.on('connection', (ws, req) => {
         ws.userId = userId;
         ws.type = 'web';
 
-        if (sessionCode) {
-            const conn = mobileConnections.get(sessionCode);
-            if (conn) {
-                conn.web = ws;
-                ws.send(JSON.stringify({ type: 'session_info', session: conn.session }));
-                
-                // Notify if mobile already connected
-                if (conn.mobile) {
-                    ws.send(JSON.stringify({ type: 'mobile_connected', sessionCode }));
-                }
-            }
-            webConnections.set(sessionCode, ws);
+        console.log(`🖥️ Web connecting with sessionCode: ${sessionCode}`);
+        
+        // Create or update connection entry
+        if (!mobileConnections.has(sessionCode)) {
+            mobileConnections.set(sessionCode, { mobile: null, web: null, session: null });
         }
+        
+        const conn = mobileConnections.get(sessionCode);
+        conn.web = ws;
+        
+        // Send immediate status
+        const mobileConnected = conn.mobile && conn.mobile.readyState === WebSocket.OPEN;
+        console.log(`📊 Session ${sessionCode}: mobileConnected=${mobileConnected}`);
+        
+        ws.send(JSON.stringify({ 
+            type: 'session_status',
+            mobileConnected: mobileConnected,
+            session: conn.session
+        }));
+        
+        // If mobile already connected, send the notification
+        if (mobileConnected) {
+            console.log(`📱 Notifying web: mobile already connected for ${sessionCode}`);
+            ws.send(JSON.stringify({ type: 'mobile_connected', sessionCode }));
+        }
+        
+        webConnections.set(sessionCode, ws);
 
         ws.on('message', (message) => {
             try {
