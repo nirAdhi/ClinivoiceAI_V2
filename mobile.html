@@ -105,6 +105,10 @@
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}?sessionCode=${sessionCode}&userId=${userId}&type=mobile`;
             console.log('Connecting to:', wsUrl);
+            console.log('Location host:', window.location.host);
+            console.log('Location protocol:', window.location.protocol);
+            
+            statusEl.textContent = 'Connecting to server...';
             
             ws = new WebSocket(wsUrl);
             
@@ -116,6 +120,11 @@
                     type: 'auth', 
                     sessionCode: sessionCode 
                 }));
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                statusEl.textContent = 'Connection error';
             };
             
             ws.onmessage = (event) => {
@@ -139,17 +148,20 @@
                 }
             };
             
-            ws.onclose = () => {
-                console.log('WebSocket closed');
+            ws.onclose = (event) => {
+                console.log('WebSocket closed:', event.code, event.reason);
                 connectedBox.style.display = 'none';
-                statusEl.textContent = 'Disconnected';
+                statusEl.textContent = 'Disconnected (code: ' + event.code + ')';
                 micBtn.disabled = true;
+                if (event.code !== 1000) {
+                    showError('Failed to connect. Make sure the session is active on your computer.');
+                }
                 stopRecording();
             };
             
             ws.onerror = (error) => {
                 console.error('WebSocket error:', error);
-                showError('Failed to connect to server');
+                showError('Failed to connect to server. Check console for details.');
             };
         }
         
