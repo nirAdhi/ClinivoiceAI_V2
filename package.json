@@ -1,38 +1,50 @@
 {
-    "name": "clinivoice",
+    "name": "clinivoice-ai",
     "version": "1.0.0",
-    "description": "Clinivoice - AI-powered clinical voice dictation platform",
+    "description": "Clinvoice AI - AI-powered clinical voice dictation and documentation platform",
     "main": "server.js",
     "scripts": {
         "start": "node server.js",
         "dev": "node server.js",
+        "dev:all": "concurrently \"npm run dev\" \"npm run dev:desktop\"",
         "dev:desktop": "cd desktop && npm run dev",
+        "build": "cd desktop && npm run build",
         "build:desktop": "cd desktop && npm run build",
-        "install:desktop": "cd desktop && npm install"
+        "setup": "node setup.js",
+        "install:all": "npm install && cd desktop && npm install",
+        "test": "echo \"No tests configured\" && exit 0",
+        "lint": "echo \"Linting not configured\" && exit 0"
     },
     "keywords": [
         "medical",
         "dental",
+        "healthcare",
         "ai",
         "voice-dictation",
-        "transcription"
+        "transcription",
+        "clinical-documentation",
+        "soap-notes"
     ],
-    "author": "",
-    "license": "ISC",
+    "author": "Clinvoice AI Team",
+    "license": "MIT",
     "engines": {
         "node": ">=18.0.0"
     },
     "dependencies": {
         "@google/generative-ai": "^0.24.1",
         "bcryptjs": "^2.4.3",
-        "body-parser": "^1.20.2",
         "cors": "^2.8.5",
         "dotenv": "^16.3.1",
         "express": "^4.18.2",
+        "jsonwebtoken": "^9.0.3",
         "multer": "^1.4.5-lts.1",
         "mysql2": "^3.16.3",
-        "openai": "^4.20.1",
-        "prompt-sync": "^4.2.0",
-        "ws": "^8.14.2"
+        "stripe": "^20.3.1"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2"
+    },
+    "optionalDependencies": {
+        "openai": "^4.20.1"
     }
 }

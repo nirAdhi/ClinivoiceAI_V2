@@ -2,11 +2,13 @@
 require('dotenv').config();
 const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
+const logger = require('./middleware/logger');
+
+const isDev = process.env.NODE_ENV !== 'production';
 
 // Support Railway DATABASE_URL format
 let dbConfig;
 if (process.env.DATABASE_URL) {
-    // Parse Railway MySQL URL: mysql://user:password@host:port/database
     const url = new URL(process.env.DATABASE_URL);
     dbConfig = {
         host: url.hostname,
@@ -34,7 +36,7 @@ if (process.env.DATABASE_URL) {
 const pool = mysql.createPool(dbConfig);
 const promisePool = pool.promise();
 
-console.log('✅ MySQL connection pool created');
+logger.success('MySQL connection pool created');
 
 async function initializeTables() {
     try {
@@ -94,6 +96,126 @@ async function initializeTables() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         `);
 
+        // Create plans table
+        await promisePool.query(`
+            CREATE TABLE IF NOT EXISTS plans (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(50) UNIQUE NOT NULL,
+                display_name VARCHAR(100) NOT NULL,
+                description TEXT,
+                price DECIMAL(10, 2) DEFAULT 0.00,
+                billing_period VARCHAR(20) DEFAULT 'monthly',
+                transcription_limit INT NULL,
+                audio_upload_allowed BOOLEAN DEFAULT TRUE,
+                features JSON,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+
+        // Create subscriptions table
+        await promisePool.query(`
+            CREATE TABLE IF NOT EXISTS subscriptions (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                plan_id INT NOT NULL,
+                stripe_subscription_id VARCHAR(255),
+                stripe_customer_id VARCHAR(255),
+                start_date DATE,
+                end_date DATE,
+                status VARCHAR(20) DEFAULT 'trial',
+                cancel_at_period_end BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_user_subscription (user_id),
+                FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE RESTRICT
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+
+        // Create transcription whitelist table
+        await promisePool.query(`
+            CREATE TABLE IF NOT EXISTS transcription_whitelist (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                reason TEXT,
+                granted_by INT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_user_whitelist (user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+
+        // Create transcription usage table
+        await promisePool.query(`
+            CREATE TABLE IF NOT EXISTS transcription_usage (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                month DATE NOT NULL,
+                usage_count INT DEFAULT 0,
+                UNIQUE KEY unique_user_month (user_id, month)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+
+        // Create plan history table
+        await promisePool.query(`
+            CREATE TABLE IF NOT EXISTS plan_history (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                plan_id INT NOT NULL,
+                changes JSON,
+                changed_by VARCHAR(255),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+
+        // Create user_features table
+        await promisePool.query(`
+            CREATE TABLE IF NOT EXISTS user_features (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                transcription_enabled BOOLEAN DEFAULT TRUE,
+                audio_upload_enabled BOOLEAN DEFAULT TRUE,
+                UNIQUE KEY unique_user_features (user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+
+        // Insert default plans if none exist
+        const [planCount] = await promisePool.query('SELECT COUNT(*) as count FROM plans');
+        if (planCount[0].count === 0) {
+            await promisePool.query(`
+                INSERT INTO plans (name, display_name, description, price, transcription_limit, audio_upload_allowed, features) VALUES
+                ('free_trial', 'Free Trial', '10 free test transcriptions', 0.00, 10, TRUE, '["10 free transcriptions", "Basic SOAP notes", "Test all features"]'),
+                ('starter', 'Starter', 'Perfect for individual clinicians', 19.00, 100, TRUE, '["100 transcriptions/month", "AI Clinical Notes", "Audio Upload", "Email Support"]'),
+                ('enterprise', 'Enterprise', 'Unlimited transcription for large practices', 0.00, NULL, TRUE, '["Unlimited transcriptions", "Priority Support", "Custom AI Training", "API Access", "White-label Options"]')
+            `);
+            logger.info('Default plans created');
+        }
+
+        // Add new columns for manual payment system
+        try {
+            await promisePool.query('ALTER TABLE users ADD COLUMN plan_type VARCHAR(50) DEFAULT "free_trial"');
+        } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
+        
+        try {
+            await promisePool.query('ALTER TABLE users ADD COLUMN transcription_count INT DEFAULT 0');
+        } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
+        
+        try {
+            await promisePool.query('ALTER TABLE users ADD COLUMN transcription_limit INT DEFAULT 10');
+        } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
+        
+        try {
+            await promisePool.query("ALTER TABLE users ADD COLUMN account_status VARCHAR(20) DEFAULT 'active'");
+        } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
+        
+        try {
+            await promisePool.query('ALTER TABLE users ADD COLUMN plan_expires_at DATETIME NULL');
+        } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
+        
+        try {
+            await promisePool.query('ALTER TABLE users ADD COLUMN payment_notes TEXT NULL');
+        } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
+
         // Ensure legacy tables have missing columns
         try {
             await promisePool.query('ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)');
@@ -104,6 +226,12 @@ async function initializeTables() {
         // Add tooth_number column if missing
         try {
             await promisePool.query('ALTER TABLE sessions ADD COLUMN tooth_number VARCHAR(100)');
+        } catch (e) {
+            if (e.code !== 'ER_DUP_FIELDNAME') throw e;
+        }
+        // Add input_source column for tracking WEB vs MOBILE
+        try {
+            await promisePool.query("ALTER TABLE sessions ADD COLUMN input_source VARCHAR(20) DEFAULT 'WEB'");
         } catch (e) {
             if (e.code !== 'ER_DUP_FIELDNAME') throw e;
         }
@@ -138,6 +266,23 @@ async function initializeTables() {
             await promisePool.query('ALTER TABLE users ADD COLUMN reset_expires DATETIME NULL');
         } catch (e) { if (e.code !== 'ER_DUP_FIELDNAME') throw e; }
 
+        // Mobile sessions table for remote microphone feature
+        await promisePool.query(`
+            CREATE TABLE IF NOT EXISTS mobile_sessions (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                session_code VARCHAR(10) UNIQUE NOT NULL,
+                user_id VARCHAR(255) NOT NULL,
+                web_session_id VARCHAR(255),
+                status VARCHAR(20) DEFAULT 'waiting',
+                input_source VARCHAR(20) DEFAULT 'MOBILE',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP NULL,
+                INDEX idx_session_code (session_code),
+                INDEX idx_user_id (user_id),
+                INDEX idx_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+
         // Create default admin user if none exists (avoid hoisting issues)
         const [adminExists] = await promisePool.query('SELECT id FROM users WHERE user_id = ? LIMIT 1', ['admin']);
         if (adminExists.length === 0) {
@@ -146,14 +291,12 @@ async function initializeTables() {
                 'INSERT INTO users (user_id, domain, password_hash) VALUES (?, ?, ?)',
                 ['admin', 'medical', hash]
             );
-            console.log('🔑 Default admin user created: admin / Admin@123');
-        } else {
-            console.log('ℹ️  Admin user already exists');
+            logger.info('Default admin user created: admin / Admin@123');
         }
 
-        console.log('✅ Database tables ready');
+        logger.success('Database tables ready');
     } catch (error) {
-        console.error('Error initializing tables:', error);
+        logger.error('Error initializing tables:', error);
     }
 }
 
@@ -220,59 +363,45 @@ const updateSession = async (id, data) => {
 
 const createUser = async ({ user_id, password, domain, role = 'clinician', name = null, email = null }) => {
     const password_hash = await bcrypt.hash(password, 10);
-    // 1) Insert minimal required columns to avoid legacy column errors
+    
+    // Insert new user with FREE_TRIAL plan (10 transcriptions)
     try {
         await promisePool.query(
-            'INSERT INTO users (user_id, domain, password_hash, role) VALUES (?, ?, ?, ?)',
-            [user_id, domain, password_hash, role]
+            `INSERT INTO users (user_id, domain, password_hash, role, name, email, plan_type, transcription_count, transcription_limit, account_status) 
+             VALUES (?, ?, ?, ?, ?, ?, 'free_trial', 0, 10, 'active')`,
+            [user_id, domain || 'medical', password_hash, role, name, email]
         );
     } catch (e) {
-        // Create required columns if missing, then retry minimal insert
-        const msg = String(e && (e.sqlMessage || e.message) || '')
-        if (msg.includes('password_hash')) {
-            await promisePool.query('ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)');
-        }
-        if (msg.includes("'domain'")) {
-            await promisePool.query("ALTER TABLE users ADD COLUMN domain VARCHAR(50) NOT NULL DEFAULT 'medical'");
-        }
-        if (msg.includes("'role'")) {
-            await promisePool.query("ALTER TABLE users ADD COLUMN role VARCHAR(50) DEFAULT 'clinician'");
-        }
-        await promisePool.query(
-            'INSERT INTO users (user_id, domain, password_hash, role) VALUES (?, ?, ?, ?)',
-            [user_id, domain, password_hash, role]
-        );
-    }
-
-    // 2) Update optional columns if provided
-    if (name != null || email != null) {
-        const sets = []
-        const params = []
-        if (name != null) { sets.push('name = ?'); params.push(name) }
-        if (email != null) { sets.push('email = ?'); params.push(email) }
-        if (sets.length) {
-            try {
-                params.push(user_id)
-                await promisePool.query(`UPDATE users SET ${sets.join(', ')} WHERE user_id = ?`, params)
-            } catch (e) {
-                const msg = String(e && (e.sqlMessage || e.message) || '')
-                if (msg.includes("'name'")) {
-                    await promisePool.query('ALTER TABLE users ADD COLUMN name VARCHAR(255) NULL')
-                }
-                if (msg.includes("'email'")) {
-                    await promisePool.query('ALTER TABLE users ADD COLUMN email VARCHAR(255) NULL')
-                }
-                // retry once after adding
-                const sets2 = []
-                const params2 = []
-                if (name != null) { sets2.push('name = ?'); params2.push(name) }
-                if (email != null) { sets2.push('email = ?'); params2.push(email) }
-                if (sets2.length) {
-                    params2.push(user_id)
-                    await promisePool.query(`UPDATE users SET ${sets2.join(', ')} WHERE user_id = ?`, params2)
-                }
+        // Handle missing columns - add them and retry
+        const msg = String(e && (e.sqlMessage || e.message) || '');
+        
+        // Add any missing columns
+        const columnsToAdd = [
+            { check: 'password_hash', sql: 'ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)' },
+            { check: "'domain'", sql: "ALTER TABLE users ADD COLUMN domain VARCHAR(50) NOT NULL DEFAULT 'medical'" },
+            { check: "'role'", sql: "ALTER TABLE users ADD COLUMN role VARCHAR(50) DEFAULT 'clinician'" },
+            { check: "'name'", sql: 'ALTER TABLE users ADD COLUMN name VARCHAR(255) NULL' },
+            { check: "'email'", sql: 'ALTER TABLE users ADD COLUMN email VARCHAR(255) NULL' },
+            { check: "'plan_type'", sql: 'ALTER TABLE users ADD COLUMN plan_type VARCHAR(50) DEFAULT "free_trial"' },
+            { check: "'transcription_count'", sql: 'ALTER TABLE users ADD COLUMN transcription_count INT DEFAULT 0' },
+            { check: "'transcription_limit'", sql: 'ALTER TABLE users ADD COLUMN transcription_limit INT DEFAULT 10' },
+            { check: "'account_status'", sql: "ALTER TABLE users ADD COLUMN account_status VARCHAR(20) DEFAULT 'active'" }
+        ];
+        
+        for (const col of columnsToAdd) {
+            if (msg.includes(col.check)) {
+                try {
+                    await promisePool.query(col.sql);
+                } catch (err) { /* ignore if already exists */ }
             }
         }
+        
+        // Retry insert
+        await promisePool.query(
+            `INSERT INTO users (user_id, domain, password_hash, role, name, email, plan_type, transcription_count, transcription_limit, account_status) 
+             VALUES (?, ?, ?, ?, ?, ?, 'free_trial', 0, 10, 'active')`,
+            [user_id, domain || 'medical', password_hash, role, name, email]
+        );
     }
 };
 
@@ -337,6 +466,445 @@ const getUserStats = async (userId) => {
     };
 };
 
+// ==================== SUBSCRIPTION & PLANS ====================
+
+const getAllPlans = async () => {
+    const [rows] = await promisePool.query('SELECT * FROM plans WHERE is_active = TRUE ORDER BY price ASC');
+    return rows;
+};
+
+const getPlanById = async (planId) => {
+    const [[plan]] = await promisePool.query('SELECT * FROM plans WHERE id = ?', [planId]);
+    return plan || null;
+};
+
+const getPlanByName = async (planName) => {
+    const [[plan]] = await promisePool.query('SELECT * FROM plans WHERE name = ?', [planName]);
+    return plan || null;
+};
+
+const createPlan = async ({ name, display_name, description, price, billing_period = 'monthly', transcription_limit, audio_upload_allowed = true, features = [] }) => {
+    const [result] = await promisePool.query(
+        'INSERT INTO plans (name, display_name, description, price, billing_period, transcription_limit, audio_upload_allowed, features) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [name, display_name, description, price, billing_period, transcription_limit, audio_upload_allowed, JSON.stringify(features)]
+    );
+    return { id: result.insertId };
+};
+
+// ==================== SUBSCRIPTIONS ====================
+
+const getUserSubscription = async (userId) => {
+    const [[sub]] = await promisePool.query(
+        `SELECT s.*, p.name as plan_name, p.display_name, p.price, p.transcription_limit, p.features 
+         FROM subscriptions s 
+         JOIN plans p ON s.plan_id = p.id 
+         WHERE s.user_id = ? 
+         ORDER BY s.created_at DESC LIMIT 1`,
+        [userId]
+    );
+    return sub || null;
+};
+
+const createSubscription = async ({ user_id, plan_id, stripe_subscription_id = null, stripe_customer_id = null, start_date, end_date = null, status = 'trial' }) => {
+    const [result] = await promisePool.query(
+        'INSERT INTO subscriptions (user_id, plan_id, stripe_subscription_id, stripe_customer_id, start_date, end_date, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [user_id, plan_id, stripe_subscription_id, stripe_customer_id, start_date, end_date, status]
+    );
+    return { id: result.insertId };
+};
+
+const updateSubscription = async (subscriptionId, data) => {
+    const updates = [];
+    const params = [];
+
+    if (data.status !== undefined) { updates.push('status = ?'); params.push(data.status); }
+    if (data.end_date !== undefined) { updates.push('end_date = ?'); params.push(data.end_date); }
+    if (data.stripe_subscription_id !== undefined) { updates.push('stripe_subscription_id = ?'); params.push(data.stripe_subscription_id); }
+    if (data.stripe_customer_id !== undefined) { updates.push('stripe_customer_id = ?'); params.push(data.stripe_customer_id); }
+    if (data.cancel_at_period_end !== undefined) { updates.push('cancel_at_period_end = ?'); params.push(data.cancel_at_period_end); }
+
+    if (updates.length === 0) return;
+    params.push(subscriptionId);
+    await promisePool.query(`UPDATE subscriptions SET ${updates.join(', ')} WHERE id = ?`, params);
+};
+
+const getSubscriptionByStripeId = async (stripeSubscriptionId) => {
+    const [[sub]] = await promisePool.query('SELECT * FROM subscriptions WHERE stripe_subscription_id = ?', [stripeSubscriptionId]);
+    return sub || null;
+};
+
+// ==================== TRANSCRIPTION WHITELIST ====================
+
+const isWhitelisted = async (userId) => {
+    const [[row]] = await promisePool.query('SELECT id FROM transcription_whitelist WHERE user_id = ?', [userId]);
+    return !!row;
+};
+
+const addToWhitelist = async (userId, reason = null, grantedBy = null) => {
+    try {
+        await promisePool.query(
+            'INSERT INTO transcription_whitelist (user_id, reason, granted_by) VALUES (?, ?, ?)',
+            [userId, reason, grantedBy]
+        );
+        return true;
+    } catch (err) {
+        if (err.code === 'ER_DUP_ENTRY') return false; // Already whitelisted
+        throw err;
+    }
+};
+
+const removeFromWhitelist = async (userId) => {
+    await promisePool.query('DELETE FROM transcription_whitelist WHERE user_id = ?', [userId]);
+};
+
+const getAllWhitelistedUsers = async () => {
+    const [rows] = await promisePool.query(
+        `SELECT w.*, u.user_id, u.name, u.email 
+         FROM transcription_whitelist w 
+         JOIN users u ON w.user_id = u.id 
+         ORDER BY w.created_at DESC`
+    );
+    return rows;
+};
+
+// ==================== USAGE TRACKING ====================
+
+const getTranscriptionUsage = async (userId, month = null) => {
+    // If no month specified, use current month
+    const targetMonth = month || new Date().toISOString().slice(0, 7) + '-01';
+    const [[usage]] = await promisePool.query(
+        'SELECT usage_count FROM transcription_usage WHERE user_id = ? AND month = ?',
+        [userId, targetMonth]
+    );
+    return usage ? usage.usage_count : 0;
+};
+
+const incrementTranscriptionUsage = async (userId, month = null) => {
+    const targetMonth = month || new Date().toISOString().slice(0, 7) + '-01';
+    await promisePool.query(
+        `INSERT INTO transcription_usage (user_id, month, usage_count) VALUES (?, ?, 1)
+         ON DUPLICATE KEY UPDATE usage_count = usage_count + 1`,
+        [userId, targetMonth]
+    );
+};
+
+const resetMonthlyUsage = async (userId) => {
+    const currentMonth = new Date().toISOString().slice(0, 7) + '-01';
+    await promisePool.query(
+        'UPDATE transcription_usage SET usage_count = 0 WHERE user_id = ? AND month = ?',
+        [userId, currentMonth]
+    );
+};
+
+// ==================== COMBINED CHECKS ====================
+
+/**
+ * Check if user can transcribe based on subscription + whitelist + usage
+ * Returns { allowed: boolean, reason: string, usage: number, limit: number }
+ */
+const canUserTranscribe = async (userId) => {
+    // Check whitelist first (always allow)
+    const whitelisted = await isWhitelisted(userId);
+    if (whitelisted) {
+        return { allowed: true, reason: 'whitelisted', usage: 0, limit: null };
+    }
+
+    // Check subscription
+    const subscription = await getUserSubscription(userId);
+    if (!subscription) {
+        return { allowed: false, reason: 'no_subscription', usage: 0, limit: 0 };
+    }
+
+    if (subscription.status !== 'active' && subscription.status !== 'trial') {
+        return { allowed: false, reason: 'inactive_subscription', usage: 0, limit: 0 };
+    }
+
+    // Check usage vs limit (null limit = unlimited)
+    const limit = subscription.transcription_limit;
+    if (limit === null) {
+        return { allowed: true, reason: 'unlimited_plan', usage: 0, limit: null };
+    }
+
+    const currentMonth = new Date().toISOString().slice(0, 7) + '-01';
+    const usage = await getTranscriptionUsage(userId, currentMonth);
+
+    if (usage >= limit) {
+        return { allowed: false, reason: 'limit_exceeded', usage, limit };
+    }
+
+    return { allowed: true, reason: 'within_limit', usage, limit };
+};
+
+// ==================== ADMIN FUNCTIONS ====================
+
+const getAllUsersWithDetails = async () => {
+    const [rows] = await promisePool.query(`
+        SELECT 
+            u.id, u.user_id, u.name, u.email, u.domain, u.role, u.created_at, u.last_login,
+            s.plan_id, s.status as subscription_status, s.cancel_at_period_end,
+            p.name as plan_name, p.display_name as plan_display_name, p.price, p.transcription_limit,
+            w.id as whitelist_id,
+            COALESCE(tu.usage_count, 0) as usage_count
+        FROM users u
+        LEFT JOIN subscriptions s ON u.id = s.user_id AND (s.status = 'active' OR s.status = 'trial')
+        LEFT JOIN plans p ON s.plan_id = p.id
+        LEFT JOIN transcription_whitelist w ON u.id = w.user_id
+        LEFT JOIN transcription_usage tu ON u.id = tu.user_id AND tu.month = DATE_FORMAT(NOW(), '%Y-%m-01')
+        ORDER BY u.created_at DESC
+    `);
+    return rows;
+};
+
+const updateUserRole = async (userId, role) => {
+    await promisePool.query('UPDATE users SET role = ? WHERE user_id = ?', [role, userId]);
+};
+
+const updateUserFeatures = async (userId, features) => {
+    const { transcription_enabled, audio_upload_enabled } = features;
+    const updates = [];
+    const params = [];
+    
+    if (transcription_enabled !== undefined) {
+        updates.push('transcription_enabled = ?');
+        params.push(transcription_enabled ? 1 : 0);
+    }
+    if (audio_upload_enabled !== undefined) {
+        updates.push('audio_upload_enabled = ?');
+        params.push(audio_upload_enabled ? 1 : 0);
+    }
+    
+    if (updates.length === 0) return;
+    
+    params.push(userId);
+    await promisePool.query(`UPDATE user_features SET ${updates.join(', ')} WHERE user_id = ?`, params);
+};
+
+const getUserFeatures = async (userId) => {
+    const [[features]] = await promisePool.query(
+        'SELECT * FROM user_features WHERE user_id = ?',
+        [userId]
+    );
+    return features || { transcription_enabled: true, audio_upload_enabled: true };
+};
+
+const assignPlanToUser = async (userId, planId, status = 'active') => {
+    const plan = await getPlanById(planId);
+    if (!plan) throw new Error('Plan not found');
+    
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + 1);
+    
+    await promisePool.query(
+        `INSERT INTO subscriptions (user_id, plan_id, start_date, end_date, status) 
+         VALUES (?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE plan_id = ?, start_date = ?, end_date = ?, status = ?`,
+        [userId, planId, startDate, endDate, status, planId, startDate, endDate, status]
+    );
+};
+
+const cancelUserSubscription = async (userId) => {
+    await promisePool.query(
+        'UPDATE subscriptions SET status = ?, cancel_at_period_end = TRUE WHERE user_id = ?',
+        ['cancelled', userId]
+    );
+};
+
+const updatePlan = async (planId, data) => {
+    const updates = [];
+    const params = [];
+    
+    if (data.display_name !== undefined) { updates.push('display_name = ?'); params.push(data.display_name); }
+    if (data.description !== undefined) { updates.push('description = ?'); params.push(data.description); }
+    if (data.price !== undefined) { updates.push('price = ?'); params.push(data.price); }
+    if (data.transcription_limit !== undefined) { updates.push('transcription_limit = ?'); params.push(data.transcription_limit); }
+    if (data.audio_upload_allowed !== undefined) { updates.push('audio_upload_allowed = ?'); params.push(data.audio_upload_allowed ? 1 : 0); }
+    if (data.features !== undefined) { updates.push('features = ?'); params.push(JSON.stringify(data.features)); }
+    if (data.is_active !== undefined) { updates.push('is_active = ?'); params.push(data.is_active ? 1 : 0); }
+    
+    if (updates.length === 0) return;
+    
+    params.push(planId);
+    await promisePool.query(`UPDATE plans SET ${updates.join(', ')} WHERE id = ?`, params);
+};
+
+const createPlanHistory = async (planId, changes, changedBy) => {
+    await promisePool.query(
+        'INSERT INTO plan_history (plan_id, changes, changed_by) VALUES (?, ?, ?)',
+        [planId, JSON.stringify(changes), changedBy]
+    );
+};
+
+const getPlanHistory = async (planId = null) => {
+    const query = planId 
+        ? 'SELECT ph.*, p.display_name as plan_name FROM plan_history ph JOIN plans p ON ph.plan_id = p.id WHERE ph.plan_id = ? ORDER BY ph.created_at DESC'
+        : 'SELECT ph.*, p.display_name as plan_name FROM plan_history ph JOIN plans p ON ph.plan_id = p.id ORDER BY ph.created_at DESC';
+    const params = planId ? [planId] : [];
+    const [rows] = await promisePool.query(query, params);
+    return rows;
+};
+
+const searchUsers = async (searchTerm) => {
+    const term = `%${searchTerm}%`;
+    const [rows] = await promisePool.query(
+        `SELECT id, user_id, name, email, domain, role, created_at, last_login 
+         FROM users 
+         WHERE user_id LIKE ? OR name LIKE ? OR email LIKE ? OR role LIKE ?
+         ORDER BY created_at DESC`,
+        [term, term, term, term]
+    );
+    return rows;
+};
+
+const toggleUserTranscriptionAccess = async (userId, enabled) => {
+    if (enabled) {
+        await removeFromWhitelist(userId);
+    } else {
+        await addToWhitelist(userId, 'Access disabled by admin', 'admin');
+    }
+};
+
+// ==================== MANUAL PAYMENT SYSTEM ====================
+
+const getUserWithUsage = async (userId) => {
+    const [[user]] = await promisePool.query(
+        `SELECT id, user_id, name, email, domain, role, plan_type, transcription_count, transcription_limit, account_status, created_at, last_login, payment_notes, plan_expires_at
+         FROM users WHERE user_id = ?`,
+        [userId]
+    );
+    return user || null;
+};
+
+const getUserWithUsageById = async (id) => {
+    const [[user]] = await promisePool.query(
+        `SELECT id, user_id, name, email, domain, role, plan_type, transcription_count, transcription_limit, account_status, created_at, last_login, payment_notes, plan_expires_at
+         FROM users WHERE id = ?`,
+        [id]
+    );
+    return user || null;
+};
+
+const incrementUserTranscriptionCount = async (userId) => {
+    await promisePool.query(
+        'UPDATE users SET transcription_count = transcription_count + 1 WHERE user_id = ?',
+        [userId]
+    );
+};
+
+const checkUserTranscriptionLimit = async (userId) => {
+    const user = await getUserWithUsage(userId);
+    if (!user) return { allowed: false, reason: 'user_not_found' };
+    
+    // Check account status
+    if (user.account_status === 'suspended') {
+        return { allowed: false, reason: 'account_suspended', user };
+    }
+    
+    // Check limit (NULL = unlimited)
+    if (user.transcription_limit === null) {
+        return { allowed: true, reason: 'unlimited', user };
+    }
+    
+    if (user.transcription_count >= user.transcription_limit) {
+        return { allowed: false, reason: 'limit_exceeded', user };
+    }
+    
+    return { allowed: true, reason: 'within_limit', user };
+};
+
+const assignUserPlan = async (userId, planType, transcriptionLimit, paymentNotes = null, expiresAt = null) => {
+    const updates = ['plan_type = ?', 'transcription_limit = ?', 'account_status = ?'];
+    const params = [planType, transcriptionLimit, 'active'];
+    
+    if (paymentNotes !== null) {
+        updates.push('payment_notes = ?');
+        params.push(paymentNotes);
+    }
+    if (expiresAt !== null) {
+        updates.push('plan_expires_at = ?');
+        params.push(expiresAt);
+    }
+    
+    params.push(userId);
+    await promisePool.query(`UPDATE users SET ${updates.join(', ')} WHERE user_id = ?`, params);
+};
+
+const resetUserUsage = async (userId) => {
+    await promisePool.query('UPDATE users SET transcription_count = 0 WHERE user_id = ?', [userId]);
+};
+
+const suspendUser = async (userId) => {
+    await promisePool.query("UPDATE users SET account_status = 'suspended' WHERE user_id = ?", [userId]);
+};
+
+const activateUser = async (userId) => {
+    await promisePool.query("UPDATE users SET account_status = 'active' WHERE user_id = ?", [userId]);
+};
+
+const updateUserPaymentNotes = async (userId, notes) => {
+    await promisePool.query('UPDATE users SET payment_notes = ? WHERE user_id = ?', [notes, userId]);
+};
+
+const getAllUsersForAdmin = async () => {
+    const [rows] = await promisePool.query(`
+        SELECT 
+            id, user_id, name, email, domain, role, 
+            plan_type, transcription_count, transcription_limit, 
+            account_status, created_at, last_login,
+            payment_notes, plan_expires_at
+        FROM users 
+        WHERE user_id != 'admin'
+        ORDER BY created_at DESC
+    `);
+    return rows;
+};
+
+const updateUserLimit = async (userId, limit) => {
+    await promisePool.query('UPDATE users SET transcription_limit = ? WHERE user_id = ?', [limit, userId]);
+};
+
+// Mobile Sessions for Remote Microphone
+const createMobileSession = async (userId) => {
+    const sessionCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    const [result] = await promisePool.query(
+        'INSERT INTO mobile_sessions (session_code, user_id, status, expires_at) VALUES (?, ?, ?, ?)',
+        [sessionCode, userId, 'waiting', expiresAt]
+    );
+    return { id: result.insertId, session_code: sessionCode };
+};
+
+const getMobileSessionByCode = async (sessionCode) => {
+    const [[session]] = await promisePool.query(
+        'SELECT * FROM mobile_sessions WHERE session_code = ? AND status != "expired" AND (expires_at IS NULL OR expires_at > NOW())',
+        [sessionCode]
+    );
+    return session || null;
+};
+
+const updateMobileSession = async (sessionCode, data) => {
+    const updates = [];
+    const params = [];
+    if (data.status !== undefined) { updates.push('status = ?'); params.push(data.status); }
+    if (data.web_session_id !== undefined) { updates.push('web_session_id = ?'); params.push(data.web_session_id); }
+    if (data.expires_at !== undefined) { updates.push('expires_at = ?'); params.push(data.expires_at); }
+    if (updates.length === 0) return;
+    params.push(sessionCode);
+    await promisePool.query(`UPDATE mobile_sessions SET ${updates.join(', ')} WHERE session_code = ?`, params);
+};
+
+const getActiveMobileSession = async (userId) => {
+    const [[session]] = await promisePool.query(
+        'SELECT * FROM mobile_sessions WHERE user_id = ? AND status = "active" AND (expires_at IS NULL OR expires_at > NOW()) ORDER BY created_at DESC LIMIT 1',
+        [userId]
+    );
+    return session || null;
+};
+
+const closeMobileSession = async (sessionCode) => {
+    await promisePool.query('UPDATE mobile_sessions SET status = "closed" WHERE session_code = ?', [sessionCode]);
+};
+
 module.exports = {
     pool,
     promisePool,
@@ -354,5 +922,57 @@ module.exports = {
     deleteUser,
     setResetToken,
     findUserByResetToken,
-    clearResetTokenAndSetPassword
+    clearResetTokenAndSetPassword,
+    // Subscription & Plans
+    getAllPlans,
+    getPlanById,
+    getPlanByName,
+    createPlan,
+    // Subscriptions
+    getUserSubscription,
+    createSubscription,
+    updateSubscription,
+    getSubscriptionByStripeId,
+    // Whitelist
+    isWhitelisted,
+    addToWhitelist,
+    removeFromWhitelist,
+    getAllWhitelistedUsers,
+    // Usage Tracking
+    getTranscriptionUsage,
+    incrementTranscriptionUsage,
+    resetMonthlyUsage,
+    // Combined Checks
+    canUserTranscribe,
+    // Admin Functions
+    getAllUsersWithDetails,
+    updateUserRole,
+    updateUserFeatures,
+    getUserFeatures,
+    assignPlanToUser,
+    cancelUserSubscription,
+    updatePlan,
+    createPlanHistory,
+    getPlanHistory,
+    searchUsers,
+    toggleUserTranscriptionAccess,
+    // Manual Payment System
+    getUserWithUsage,
+    getUserWithUsageById,
+    incrementUserTranscriptionCount,
+    checkUserTranscriptionLimit,
+    assignUserPlan,
+    resetUserUsage,
+    suspendUser,
+    activateUser,
+    updateUserPaymentNotes,
+    getAllUsersForAdmin,
+    updateUserLimit,
+    // Mobile Sessions
+    createMobileSession,
+    getMobileSessionByCode,
+    updateMobileSession,
+    getActiveMobileSession,
+    closeMobileSession
 };
+

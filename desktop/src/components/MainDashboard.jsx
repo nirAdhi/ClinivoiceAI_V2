@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import './MainDashboard.css'
 import { CalendarIcon, UsersIcon, SparklesIcon, TimerIcon, MicIcon, FileTextIcon } from './Icons'
 import AdminPanel from './AdminPanel'
+import About from './About'
+import Pricing from './Pricing'
 
 function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
   const [stats, setStats] = useState({ todayEncounters: 0, activePatients: 0, aiNotesGenerated: 0, timeSaved: 0 })
@@ -20,7 +22,7 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
   const [showSaveModal, setShowSaveModal] = useState(false)
   const [savePatientName, setSavePatientName] = useState('')
   const [saveToothNumber, setSaveToothNumber] = useState('')
-  const [saveType, setSaveType] = useState('both') // 'ai', 'raw', 'both'
+  const [saveType, setSaveType] = useState('both')
   const [showSaveDropdown, setShowSaveDropdown] = useState(false)
   const [showPatientsModal, setShowPatientsModal] = useState(false)
   const [patientsList, setPatientsList] = useState([])
@@ -35,21 +37,34 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
   const [autoGenerate, setAutoGenerate] = useState(false)
   const [headerLogoLoaded, setHeaderLogoLoaded] = useState(false)
   const [viewingEncounter, setViewingEncounter] = useState(null)
+  const [subscriptionInfo, setSubscriptionInfo] = useState(null)
+  const [loadingSubscription, setLoadingSubscription] = useState(true)
+  const [recordingTime, setRecordingTime] = useState(0)
+  const [audioLevel, setAudioLevel] = useState(0)
+  const [globalSearch, setGlobalSearch] = useState('')
+  const [showOnboarding, setShowOnboarding] = useState(true)
+  const [showNotifPanel, setShowNotifPanel] = useState(false)
+  const [currentPage, setCurrentPage] = useState('dashboard')
+  const [inputSource, setInputSource] = useState('computer') // 'computer' or 'mobile'
+  const [mobileSessionCode, setMobileSessionCode] = useState(null)
+  const [isMobileConnected, setIsMobileConnected] = useState(false)
+  const [showMobileCodeModal, setShowMobileCodeModal] = useState(false)
+  const mobileWsRef = useRef(null)
 
   useEffect(() => {
     fetch(`/api/stats/${user.userId}`)
-      .then(res => res.json())
+      .then(res => res.ok ? res.json() : { todayEncounters: 0, activePatients: 0, aiNotesGenerated: 0, timeSaved: 0 })
       .then(setStats)
-      .catch(console.error)
+      .catch(() => setStats({ todayEncounters: 0, activePatients: 0, aiNotesGenerated: 0, timeSaved: 0 }))
 
     fetch(`/api/sessions?userId=${user.userId}`)
-      .then(res => res.json())
-      .then(data => setRecentEncounters(data.slice(0, 5)))
-      .catch(console.error)
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setRecentEncounters((data || []).slice(0, 5)))
+      .catch(() => setRecentEncounters([]))
     try {
       const ag = localStorage.getItem('cv_auto_generate')
       if (ag != null) setAutoGenerate(ag === '1')
-    } catch {}
+    } catch { }
   }, [user])
 
   const pushToast = (message, type = 'success', timeout = 3000) => {
@@ -132,9 +147,9 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
 
   const saveTranscript = async () => {
     try {
-      if (!transcription || transcription.trim().length === 0 && saveType !== 'ai') { 
-        pushToast('No transcript to save', 'error'); 
-        return 
+      if (!transcription || transcription.trim().length === 0 && saveType !== 'ai') {
+        pushToast('No transcript to save', 'error');
+        return
       }
       if (!aiNote && (saveType === 'ai' || saveType === 'both')) {
         pushToast('No AI note generated yet', 'error');
@@ -143,11 +158,11 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
       const patientName = (savePatientName || '').trim()
       const toothNumber = (saveToothNumber || '').trim()
       const dentistName = user?.userId || ''
-      if (!patientName) { 
-        pushToast('Please enter patient name', 'error'); 
-        return 
+      if (!patientName) {
+        pushToast('Please enter patient name', 'error');
+        return
       }
-      
+
       // Generate preview text based on save type
       let previewText = ''
       if (saveType === 'ai' && aiNote) {
@@ -157,7 +172,7 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
       } else if (saveType === 'both') {
         previewText = `AI NOTE:\n${formatNoteAsText(aiNote, selectedSections)}\n\n---\n\nRAW TRANSCRIPT:\n${transcription}`
       }
-      
+
       // Show preview first
       setPreviewData({ patientName, toothNumber, dentistName, transcript: transcription, aiSummary: aiNote, previewText, saveType })
       setShowPreviewModal(true)
@@ -169,22 +184,22 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
 
   const confirmSave = async () => {
     try {
-      const payload = { 
-        userId: user.userId, 
-        domain: 'dental', 
-        patientName: previewData.patientName, 
+      const payload = {
+        userId: user.userId,
+        domain: 'dental',
+        patientName: previewData.patientName,
         toothNumber: previewData.toothNumber,
         dentistName: previewData.dentistName,
         saveType: previewData.saveType,
         // Always include transcription to satisfy backend validation
         transcription: previewData.transcript || '[AI Note Only - No Transcript]'
       }
-      
+
       // Include AI summary if needed
       if (previewData.saveType === 'ai' || previewData.saveType === 'both') {
         payload.aiSummary = previewData.aiSummary
       }
-      
+
       const res = await fetch('/api/save-transcript-secure', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -192,14 +207,14 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
       })
       if (!res.ok) {
         let msg = `Save failed (HTTP ${res.status})`
-        try { const e = await res.json(); if (e && e.error) msg = e.error } catch {}
+        try { const e = await res.json(); if (e && e.error) msg = e.error } catch { }
         throw new Error(msg)
       }
       pushToast('Transcript saved securely', 'success')
       setShowPreviewModal(false)
       setShowSaveModal(false)
       // refresh recent encounters
-      fetch(`/api/sessions?userId=${user.userId}`).then(r=>r.json()).then(d=>setRecentEncounters(d.slice(0,5))).catch(()=>{})
+      fetch(`/api/sessions?userId=${user.userId}`).then(r => r.json()).then(d => setRecentEncounters(d.slice(0, 5))).catch(() => { })
     } catch (err) {
       pushToast(err.message || 'Failed to save', 'error')
     }
@@ -220,7 +235,7 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    const d = new Date().toISOString().slice(0,10)
+    const d = new Date().toISOString().slice(0, 10)
     a.download = `DentalNote_${d}.txt`
     document.body.appendChild(a)
     a.click()
@@ -232,7 +247,7 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
     if (!isRecording) {
       // stop any existing recognition and recorder
       recognitionRef.current?.stop?.()
-      try { if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') mediaRecorderRef.current.stop() } catch {}
+      try { if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') mediaRecorderRef.current.stop() } catch { }
       return
     }
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -267,26 +282,26 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
     recognitionRef.current = recognition
     recognition.start()
 
-    // Start media recorder (voice note)
-    ;(async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-        const recorder = new MediaRecorder(stream)
-        audioChunksRef.current = []
-        recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data) }
-        recorder.onstop = () => {
-          try {
-            const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
-            setAudioBlob(blob)
-          } catch {}
-          stream.getTracks().forEach(t => t.stop())
+      // Start media recorder (voice note)
+      ; (async () => {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+          const recorder = new MediaRecorder(stream)
+          audioChunksRef.current = []
+          recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data) }
+          recorder.onstop = () => {
+            try {
+              const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+              setAudioBlob(blob)
+            } catch { }
+            stream.getTracks().forEach(t => t.stop())
+          }
+          recorder.start()
+          mediaRecorderRef.current = recorder
+        } catch (err) {
+          console.warn('MediaRecorder unavailable', err)
         }
-        recorder.start()
-        mediaRecorderRef.current = recorder
-      } catch (err) {
-        console.warn('MediaRecorder unavailable', err)
-      }
-    })()
+      })()
 
     return () => {
       recognition.stop()
@@ -297,6 +312,24 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
   useEffect(() => {
     isRecordingStateRef.current = isRecording
   }, [isRecording])
+
+  useEffect(() => {
+    let timer
+    if (isRecording) {
+      timer = setInterval(() => {
+        setRecordingTime(prev => prev + 1)
+      }, 1000)
+    } else {
+      setRecordingTime(0)
+    }
+    return () => clearInterval(timer)
+  }, [isRecording])
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
 
   const [isGenerating, setIsGenerating] = useState(false)
   const [selectedSections, setSelectedSections] = useState(new Set())
@@ -310,23 +343,144 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
   const isSelected = (key) => selectedSections.has(key)
   const selectAllSections = () => {
     const keys = new Set([
-      'header','chiefComplaint','historyOfPresentIllness','medicalHistory','dentalHistory','intraOralExamination','diagnosticProcedures','assessment','educationRecommendations','patientResponse','plan'
+      'header', 'chiefComplaint', 'historyOfPresentIllness', 'medicalHistory', 'dentalHistory', 'intraOralExamination', 'diagnosticProcedures', 'assessment', 'educationRecommendations', 'patientResponse', 'plan'
     ])
     setSelectedSections(keys)
   }
   const clearAllSections = () => setSelectedSections(new Set())
 
   const toggleRecording = () => {
+    if (inputSource === 'mobile' && !mobileSessionCode) {
+      alert('Please start a mobile session first')
+      return
+    }
     setIsRecording(prev => {
       const next = !prev
       if (next) {
-        // reset transcription when starting fresh
         setTranscription('')
         finalTranscriptRef.current = ''
       }
       return next
     })
   }
+
+  const startMobileSession = async () => {
+    try {
+      const token = localStorage.getItem('clinivoice_token')
+      const res = await fetch('/api/mobile/session', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (!res.ok) {
+        const err = await res.json()
+        if (res.status === 403 && err.reason === 'limit_exceeded') {
+          alert(`Transcription limit reached (${err.limit}). Please upgrade your plan.`)
+        } else {
+          alert(err.error || 'Failed to start mobile session')
+        }
+        return
+      }
+      
+      const data = await res.json()
+      setMobileSessionCode(data.sessionCode)
+      setShowMobileCodeModal(true)
+      
+      // Connect WebSocket
+      const wsUrl = `ws://localhost:3000?sessionCode=${data.sessionCode}&userId=${user.userId}&type=web`
+      const ws = new WebSocket(wsUrl)
+      
+      ws.onopen = () => {
+        console.log('Connected to mobile session')
+        ws.send(JSON.stringify({ type: 'session_info', sessionCode: data.sessionCode }))
+      }
+      
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data)
+        
+        if (data.type === 'mobile_connected') {
+          setIsMobileConnected(true)
+          pushToast('Mobile device connected!', 'success')
+        }
+        else if (data.type === 'mobile_disconnected') {
+          setIsMobileConnected(false)
+          pushToast('Mobile device disconnected', 'error')
+        }
+        else if (data.type === 'transcript') {
+          if (data.isFinal) {
+            finalTranscriptRef.current += data.transcript + ' '
+          }
+          setTranscription((finalTranscriptRef.current + (data.isFinal ? '' : '[...] ' + data.transcript)).trim())
+        }
+        else if (data.type === 'mobile_stopped') {
+          setIsRecording(false)
+          setIsMobileConnected(false)
+        }
+      }
+      
+      ws.onclose = () => {
+        setIsMobileConnected(false)
+        setMobileSessionCode(null)
+      }
+      
+      mobileWsRef.current = ws
+      
+    } catch (err) {
+      console.error('Error starting mobile session:', err)
+      alert('Failed to start mobile session')
+    }
+  }
+
+  const stopMobileSession = async () => {
+    try {
+      if (mobileWsRef.current) {
+        mobileWsRef.current.send(JSON.stringify({ type: 'stop_recording' }))
+        mobileWsRef.current.close()
+        mobileWsRef.current = null
+      }
+      
+      if (mobileSessionCode) {
+        const token = localStorage.getItem('clinivoice_token')
+        await fetch(`/api/mobile/session/${mobileSessionCode}/close`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      }
+      
+      setMobileSessionCode(null)
+      setIsMobileConnected(false)
+      setShowMobileCodeModal(false)
+      
+    } catch (err) {
+      console.error('Error stopping mobile session:', err)
+    }
+  }
+
+  useEffect(() => {
+    // Check for active mobile session on load
+    const checkActiveSession = async () => {
+      try {
+        const token = localStorage.getItem('clinivoice_token')
+        const res = await fetch('/api/mobile/active', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        const data = await res.json()
+        if (data.active) {
+          setMobileSessionCode(data.sessionCode)
+          setIsMobileConnected(true)
+        }
+      } catch (err) {
+        console.log('No active mobile session')
+      }
+    }
+    checkActiveSession()
+    
+    return () => {
+      if (mobileWsRef.current) {
+        mobileWsRef.current.close()
+      }
+    }
+  }, [])
 
   // Auto-generate when recording stops with transcription
   useEffect(() => {
@@ -347,50 +501,89 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
         if (showSettings) setShowSettings(false)
         if (showCopyModal) setShowCopyModal(false)
         if (viewingEncounter) setViewingEncounter(null)
+        if (showQuickActions) setShowQuickActions(false)
+        if (showSaveDropdown) setShowSaveDropdown(false)
+        if (showNotifPanel) setShowNotifPanel(false)
       }
     }
     window.addEventListener('keydown', handleEsc)
     return () => window.removeEventListener('keydown', handleEsc)
-  }, [showPreviewModal, showSaveModal, showPatientsModal, showSettings, showCopyModal, viewingEncounter])
+  }, [showPreviewModal, showSaveModal, showPatientsModal, showSettings, showCopyModal, viewingEncounter, showQuickActions, showSaveDropdown, showNotifPanel])
+
+  // Click outside to close dropdowns
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (showQuickActions && !e.target.closest('.dropdown-menu') && !e.target.closest('.nav-item')) {
+        setShowQuickActions(false)
+      }
+    }
+    document.addEventListener('click', handleClick)
+    return () => document.removeEventListener('click', handleClick)
+  }, [showQuickActions])
 
   const handleGenerate = async () => {
     if (!transcription || transcription.trim().length === 0) {
       alert('Please record or type some text first')
       return
     }
-    
+
     setIsGenerating(true)
     try {
       console.log('🚀 Sending generate request...')
+
+      // Get JWT token from localStorage
+      const token = localStorage.getItem('clinivoice_token')
+      if (!token) {
+        alert('Session expired. Please login again.')
+        onLogout()
+        return
+      }
+
       const res = await fetch('/api/generate-note', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          transcription: transcription.trim(), 
-          domain: 'dental', 
-          userId: user.userId 
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          transcription: transcription.trim(),
+          domain: 'dental',
+          userId: user.userId
         })
       })
-      
+
       if (!res.ok) {
         const error = await res.json()
+
+        // Handle subscription limit errors specifically
+        if (res.status === 403 && error.reason === 'limit_exceeded') {
+          alert(`⚠️ Subscription Limit Reached\n\nYou've used ${error.usage} of ${error.limit} transcriptions this month.\n\nPlease upgrade your plan to continue.`)
+          return
+        }
+
+        if (res.status === 401) {
+          alert('Session expired. Please login again.')
+          onLogout()
+          return
+        }
+
         throw new Error(error.error || 'Generation failed')
       }
-      
+
       const note = await res.json()
       console.log('✅ Note received:', note)
-      
+
       // Fix dentist name to use logged-in username if placeholder
       if (!note.dentist || note.dentist === '[Dentist Name]' || note.dentist.includes('[Dentist') || note.dentist.includes('Dentist Name')) {
         note.dentist = user?.userId || 'Dr. [Name]'
       }
-      
+
       // Try to extract patient name from transcription if placeholder
       if (!note.patient || note.patient === '[Patient Name]' || note.patient.includes('[Patient')) {
         const extractedName = guessNameFromTranscription(transcription)
         note.patient = extractedName || '[Patient Name]'
       }
-      
+
       setAiNote(note)
 
       // Sync stats after generating note
@@ -451,35 +644,143 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
 
   return (
     <div className="app-container">
-      {/* Toasts */}
       <div className="toast-container">
         {toasts.map(t => (
           <div key={t.id} className={`toast ${t.type}`}>{t.message}</div>
         ))}
       </div>
-      <header className="top-header">
-        <div className="brand">
-          <div className="brand-icon">
-            <img src="clinivoice-logo.png" alt="Clinvoice AI" className="brand-logo" onLoad={()=>setHeaderLogoLoaded(true)} onError={(e)=>{ e.currentTarget.style.display='none'; setHeaderLogoLoaded(false) }} />
-            {!headerLogoLoaded && <FileTextIcon />}
-          </div>
-          <div>
-            <h1>Clinvoice AI</h1>
-            <p>AI-Powered Clinical Documentation (Gemini)</p>
+      
+      <aside className="sidebar">
+        <div className="sidebar-brand">
+          <img src="/desktop/clinivoice-logo.png" alt="Clinvoice AI" className="sidebar-logo" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+          <div className="sidebar-brand-text">
+            <strong>Clinvoice AI</strong>
+            <small>Powered by Gemini</small>
           </div>
         </div>
-        <div className="header-actions">
-          <button onClick={onToggleTheme} className="theme-btn" title="Toggle Theme">
-            {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
-          </button>
-          {user.userId === 'admin' ? (
-            <button className="theme-btn" onClick={() => setShowAdmin(true)} title="Admin Panel">Admin</button>
-          ) : (
-            <span className="user-badge">{user.userId}</span>
+
+        <div className="sidebar-search">
+          <div className="search-wrap">
+            <span className="search-icon">🔍</span>
+            <input 
+              type="text" 
+              placeholder="Search patients..." 
+              value={globalSearch}
+              onChange={(e) => setGlobalSearch(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <nav className="sidebar-nav">
+          <div className="nav-section-label">Workspace</div>
+          <a href="#" className={`nav-item ${currentPage === 'dashboard' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); setCurrentPage('dashboard') }}>
+            <span className="nav-icon">🏠</span>
+            <span>Dashboard</span>
+          </a>
+          <a href="#" className="nav-item" onClick={(e) => { e.preventDefault(); setCurrentPage('dashboard'); setTimeout(() => document.querySelector('.encounters-table')?.scrollIntoView({ behavior: 'smooth' }), 100) }}>
+            <span className="nav-icon">📋</span>
+            <span>Encounters</span>
+            {recentEncounters.length > 0 && <span className="nav-badge">{recentEncounters.length}</span>}
+          </a>
+          <a href="#" className="nav-item" onClick={(e) => { e.preventDefault(); openPatientsList() }}>
+            <span className="nav-icon">👥</span>
+            <span>Patients</span>
+          </a>
+          <a href="#" className="nav-item" onClick={(e) => { e.preventDefault(); setCurrentPage('dashboard'); setTimeout(() => document.querySelector('.mic-btn')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100) }}>
+            <span className="nav-icon">🎙</span>
+            <span>Live Dictation</span>
+          </a>
+          <a href="#" className="nav-item" onClick={(e) => { e.preventDefault(); setCurrentPage('dashboard'); setTimeout(() => document.querySelector('.note-preview')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100) }}>
+            <span className="nav-icon">📄</span>
+            <span>Notes & Reports</span>
+          </a>
+
+          <div className="nav-section-label" style={{ marginTop: '8px' }}>Management</div>
+          <a href="#" className="nav-item" onClick={(e) => { e.preventDefault(); setShowQuickActions(!showQuickActions) }}>
+            <span className="nav-icon">⚡</span>
+            <span>Quick Actions</span>
+          </a>
+          <a href="#" className="nav-item" onClick={(e) => { e.preventDefault(); alert('📊 Analytics\n\nToday\'s Encounters: ' + stats.todayEncounters + '\nActive Patients: ' + stats.activePatients + '\nAI Notes Generated: ' + stats.aiNotesGenerated + '\nTime Saved: ' + stats.timeSaved + 'h') }}>
+            <span className="nav-icon">📊</span>
+            <span>Analytics</span>
+          </a>
+          <a href="#" className="nav-item" onClick={(e) => { e.preventDefault(); setShowSettings(true) }}>
+            <span className="nav-icon">⚙️</span>
+            <span>Settings</span>
+          </a>
+          
+          <div className="nav-section-label" style={{ marginTop: '8px' }}>Info</div>
+          <a href="#" className={`nav-item ${currentPage === 'about' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); setCurrentPage('about') }}>
+            <span className="nav-icon">ℹ️</span>
+            <span>About</span>
+          </a>
+          <a href="#" className={`nav-item ${currentPage === 'pricing' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); setCurrentPage('pricing') }}>
+            <span className="nav-icon">💰</span>
+            <span>Pricing</span>
+          </a>
+          
+          {user.userId === 'admin' && (
+            <>
+              <div className="nav-section-label" style={{ marginTop: '8px' }}>Admin</div>
+              <a href="#" className="nav-item" onClick={(e) => { e.preventDefault(); setShowAdmin(true) }}>
+                <span className="nav-icon">👑</span>
+                <span>Admin Portal</span>
+              </a>
+            </>
           )}
-          <button onClick={onLogout} className="theme-btn" title="Logout">Logout</button>
+        </nav>
+
+        <div className="sidebar-bottom">
+          <div className="sidebar-user">
+            <div className="user-avatar">{user.userId.slice(0, 2).toUpperCase()}</div>
+            <div className="user-info">
+              <strong>{user.userId}</strong>
+              <small>{user.domain || 'Clinician'}</small>
+            </div>
+            <span className="user-logout" onClick={onLogout} title="Logout">⏻</span>
+          </div>
         </div>
-      </header>
+      </aside>
+
+      <main className="main-content">
+        <header className="topnav">
+          <div className="topnav-title">{currentPage === 'about' ? 'About' : currentPage === 'pricing' ? 'Pricing' : 'Dashboard'}</div>
+          <div className="topnav-actions">
+            <button className="btn btn-primary" onClick={toggleRecording}>
+              {isRecording ? '⏹️ Stop Recording' : '＋ New Encounter'}
+            </button>
+            <button className="notif-btn" onClick={() => setShowNotifPanel(!showNotifPanel)}>
+              🔔
+              <span className="notif-dot"></span>
+            </button>
+            <button className="theme-toggle" onClick={onToggleTheme} title="Toggle theme">
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
+          </div>
+        </header>
+
+        {showNotifPanel && (
+          <div className="notif-panel open">
+            <div className="notif-panel-header">
+              Notifications
+              <span className="mark-read" onClick={() => setShowNotifPanel(false)}>Mark all read</span>
+            </div>
+            <div className="notif-item">
+              <div className="notif-item-dot"></div>
+              <div className="notif-item-body">
+                <div>Welcome to Clinvoice AI!</div>
+                <div className="notif-item-time">Just now</div>
+              </div>
+            </div>
+            <div className="notif-item">
+              <div className="notif-item-dot" style={{ background: '#f59e0b' }}></div>
+              <div className="notif-item-body">
+                <div>AI model updated to Gemini Pro</div>
+                <div className="notif-item-time">System</div>
+              </div>
+            </div>
+          </div>
+        )}
 
       {showSettings && (
         <div className="modal-overlay" onClick={() => setShowSettings(false)}>
@@ -490,8 +791,8 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
               <p><strong>Domain:</strong> {user.domain}</p>
               <p><strong>Theme:</strong> {theme}</p>
               <p><strong>AI Model:</strong> Google Gemini Pro</p>
-              <label style={{display:'flex',alignItems:'center',gap:8}}>
-                <input type="checkbox" checked={autoGenerate} onChange={(e)=>{ setAutoGenerate(e.target.checked); try { localStorage.setItem('cv_auto_generate', e.target.checked ? '1':'0') } catch {} }} />
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input type="checkbox" checked={autoGenerate} onChange={(e) => { setAutoGenerate(e.target.checked); try { localStorage.setItem('cv_auto_generate', e.target.checked ? '1' : '0') } catch { } }} />
                 Auto-generate note when recording stops
               </label>
             </div>
@@ -502,12 +803,12 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
 
       {showTranscriptView && (
         <div className="modal-overlay" onClick={() => setShowTranscriptView(false)}>
-          <div className="modal-content copy-modal" onClick={(e)=>e.stopPropagation()}>
+          <div className="modal-content copy-modal" onClick={(e) => e.stopPropagation()}>
             <h2>📝 Transcript</h2>
             <textarea className="copy-preview-text" value={transcriptViewText} readOnly />
             <div className="note-actions">
-              <button className="pdf-btn" onClick={()=>{ navigator.clipboard.writeText(transcriptViewText); pushToast('Copied to clipboard', 'success') }}>Copy</button>
-              <button className="pdf-btn" onClick={()=>setShowTranscriptView(false)}>Close</button>
+              <button className="pdf-btn" onClick={() => { navigator.clipboard.writeText(transcriptViewText); pushToast('Copied to clipboard', 'success') }}>Copy</button>
+              <button className="pdf-btn" onClick={() => setShowTranscriptView(false)}>Close</button>
             </div>
           </div>
         </div>
@@ -519,12 +820,12 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
 
       {showCopyModal && (
         <div className="modal-overlay" onClick={() => setShowCopyModal(false)}>
-          <div className="modal-content copy-modal" onClick={(e)=>e.stopPropagation()}>
-            <textarea className="copy-preview-text" value={copyPreview} onChange={(e)=>setCopyPreview(e.target.value)} placeholder="Nothing selected yet" />
+          <div className="modal-content copy-modal" onClick={(e) => e.stopPropagation()}>
+            <textarea className="copy-preview-text" value={copyPreview} onChange={(e) => setCopyPreview(e.target.value)} placeholder="Nothing selected yet" />
             <div className="note-actions">
-              <button className="pdf-btn" onClick={async ()=>{ try { await navigator.clipboard.writeText(copyPreview); } catch { alert('Copy failed'); } }}>Copy</button>
-              <button className="save-note-btn" onClick={()=>{ navigator.clipboard.writeText(copyPreview).then(()=>setShowCopyModal(false)); }}>Copy & Close</button>
-              <button className="pdf-btn" onClick={()=>setShowCopyModal(false)}>Cancel</button>
+              <button className="pdf-btn" onClick={async () => { try { await navigator.clipboard.writeText(copyPreview); } catch { alert('Copy failed'); } }}>Copy</button>
+              <button className="save-note-btn" onClick={() => { navigator.clipboard.writeText(copyPreview).then(() => setShowCopyModal(false)); }}>Copy & Close</button>
+              <button className="pdf-btn" onClick={() => setShowCopyModal(false)}>Cancel</button>
             </div>
           </div>
         </div>
@@ -538,16 +839,16 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
               <p><strong>Instructions:</strong> Enter patient name and tooth number to save securely. Dentist: <strong>{user?.userId}</strong></p>
               <label>
                 Patient Name
-                <input type="text" value={savePatientName} onChange={e=>setSavePatientName(e.target.value)} className="mrn-input" placeholder="e.g., John Doe" />
+                <input type="text" value={savePatientName} onChange={e => setSavePatientName(e.target.value)} className="mrn-input" placeholder="e.g., John Doe" />
               </label>
               <label>
                 Tooth Number / Area
-                <input type="text" value={saveToothNumber} onChange={e=>setSaveToothNumber(e.target.value)} className="mrn-input" placeholder="e.g., Lower right molar #30" />
+                <input type="text" value={saveToothNumber} onChange={e => setSaveToothNumber(e.target.value)} className="mrn-input" placeholder="e.g., Lower right molar #30" />
               </label>
             </div>
             <div className="note-actions">
               <button className="save-note-btn" onClick={saveTranscript}>✅ Preview & Save</button>
-              <button className="pdf-btn" onClick={()=>setShowSaveModal(false)}>Cancel</button>
+              <button className="pdf-btn" onClick={() => setShowSaveModal(false)}>Cancel</button>
             </div>
           </div>
         </div>
@@ -558,25 +859,25 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
           <div className="modal-content copy-modal" onClick={(e) => e.stopPropagation()}>
             <h2>🔒 Preview - {previewData?.saveType === 'ai' ? 'AI Note Only' : previewData?.saveType === 'raw' ? 'Raw Transcript Only' : 'Both AI & Raw'}</h2>
             <div className="settings-section">
-              <label style={{marginBottom: '12px', display: 'block'}}>
+              <label style={{ marginBottom: '12px', display: 'block' }}>
                 <strong>Patient:</strong>
-                <input 
-                  type="text" 
-                  value={previewData?.patientName || ''} 
-                  onChange={(e) => setPreviewData(prev => ({...prev, patientName: e.target.value}))}
+                <input
+                  type="text"
+                  value={previewData?.patientName || ''}
+                  onChange={(e) => setPreviewData(prev => ({ ...prev, patientName: e.target.value }))}
                   className="mrn-input"
-                  style={{marginTop: '6px', display: 'block', width: '100%', padding: '8px 12px', fontSize: '14px'}}
+                  style={{ marginTop: '6px', display: 'block', width: '100%', padding: '8px 12px', fontSize: '14px' }}
                   placeholder="Enter patient name"
                 />
               </label>
-              <label style={{marginBottom: '12px', display: 'block'}}>
+              <label style={{ marginBottom: '12px', display: 'block' }}>
                 <strong>Tooth Number/Area:</strong>
-                <input 
-                  type="text" 
-                  value={previewData?.toothNumber || ''} 
-                  onChange={(e) => setPreviewData(prev => ({...prev, toothNumber: e.target.value}))}
+                <input
+                  type="text"
+                  value={previewData?.toothNumber || ''}
+                  onChange={(e) => setPreviewData(prev => ({ ...prev, toothNumber: e.target.value }))}
                   className="mrn-input"
-                  style={{marginTop: '6px', display: 'block', width: '100%', padding: '8px 12px', fontSize: '14px'}}
+                  style={{ marginTop: '6px', display: 'block', width: '100%', padding: '8px 12px', fontSize: '14px' }}
                   placeholder="e.g., Lower right molar #30"
                 />
               </label>
@@ -586,28 +887,28 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                 <p><strong>Transcript Length:</strong> {previewData?.transcript?.length} characters</p>
               )}
               {previewData?.saveType === 'ai' && previewData?.aiSummary && (
-                <div className="ai-summary-preview" style={{marginTop: '10px', padding: '10px', background: '#f8fafc', borderRadius: '6px'}}>
+                <div className="ai-summary-preview" style={{ marginTop: '10px', padding: '10px', background: '#f8fafc', borderRadius: '6px' }}>
                   <strong>AI Note Preview:</strong>
-                  <pre style={{whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '14px', marginTop: '8px', maxHeight: '200px', overflow: 'auto'}}>{previewData.previewText}</pre>
+                  <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '14px', marginTop: '8px', maxHeight: '200px', overflow: 'auto' }}>{previewData.previewText}</pre>
                 </div>
               )}
               {previewData?.saveType === 'both' && previewData?.aiSummary && (
-                <div className="ai-summary-preview" style={{marginTop: '10px', padding: '10px', background: '#f8fafc', borderRadius: '6px'}}>
+                <div className="ai-summary-preview" style={{ marginTop: '10px', padding: '10px', background: '#f8fafc', borderRadius: '6px' }}>
                   <strong>Preview (AI Note + Raw Transcript):</strong>
-                  <pre style={{whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '14px', marginTop: '8px', maxHeight: '200px', overflow: 'auto'}}>{previewData.previewText}</pre>
+                  <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '14px', marginTop: '8px', maxHeight: '200px', overflow: 'auto' }}>{previewData.previewText}</pre>
                 </div>
               )}
               {previewData?.saveType === 'raw' && (
-                <div className="ai-summary-preview" style={{marginTop: '10px', padding: '10px', background: '#f8fafc', borderRadius: '6px'}}>
+                <div className="ai-summary-preview" style={{ marginTop: '10px', padding: '10px', background: '#f8fafc', borderRadius: '6px' }}>
                   <strong>Raw Transcript Preview:</strong>
-                  <pre style={{whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '14px', marginTop: '8px', maxHeight: '200px', overflow: 'auto'}}>{previewData.transcript?.slice(0, 1000)}{previewData.transcript?.length > 1000 ? '...' : ''}</pre>
+                  <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '14px', marginTop: '8px', maxHeight: '200px', overflow: 'auto' }}>{previewData.transcript?.slice(0, 1000)}{previewData.transcript?.length > 1000 ? '...' : ''}</pre>
                 </div>
               )}
-              <small style={{color: '#64748b', display: 'block', marginTop: '10px'}}>This will be saved securely with encryption.</small>
+              <small style={{ color: '#64748b', display: 'block', marginTop: '10px' }}>This will be saved securely with encryption.</small>
             </div>
             <div className="note-actions">
               <button className="save-note-btn" onClick={confirmSave}>🔒 Confirm Save</button>
-              <button className="pdf-btn" onClick={()=>setShowPreviewModal(false)}>Edit</button>
+              <button className="pdf-btn" onClick={() => setShowPreviewModal(false)}>Edit</button>
             </div>
           </div>
         </div>
@@ -619,20 +920,20 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
             <h2>👥 Active Patients</h2>
             <div className="settings-section">
               {patientsList.length > 0 ? (
-                <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
-                      <th style={{textAlign: 'left', padding: '8px', borderBottom: '1px solid #e2e8f0'}}>Name</th>
-                      <th style={{textAlign: 'left', padding: '8px', borderBottom: '1px solid #e2e8f0'}}>Phone</th>
-                      <th style={{textAlign: 'left', padding: '8px', borderBottom: '1px solid #e2e8f0'}}>Last Visit</th>
+                      <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #e2e8f0' }}>Name</th>
+                      <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #e2e8f0' }}>Phone</th>
+                      <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid #e2e8f0' }}>Last Visit</th>
                     </tr>
                   </thead>
                   <tbody>
                     {patientsList.map(p => (
                       <tr key={p.id}>
-                        <td style={{padding: '8px', borderBottom: '1px solid #f1f5f9'}}>{p.name}</td>
-                        <td style={{padding: '8px', borderBottom: '1px solid #f1f5f9'}}>{p.phone || '-'}</td>
-                        <td style={{padding: '8px', borderBottom: '1px solid #f1f5f9'}}>{p.last_visit ? new Date(p.last_visit).toLocaleDateString() : '-'}</td>
+                        <td style={{ padding: '8px', borderBottom: '1px solid #f1f5f9' }}>{p.name}</td>
+                        <td style={{ padding: '8px', borderBottom: '1px solid #f1f5f9' }}>{p.phone || '-'}</td>
+                        <td style={{ padding: '8px', borderBottom: '1px solid #f1f5f9' }}>{p.last_visit ? new Date(p.last_visit).toLocaleDateString() : '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -642,7 +943,7 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
               )}
             </div>
             <div className="note-actions">
-              <button className="pdf-btn" onClick={()=>setShowPatientsModal(false)}>Close</button>
+              <button className="pdf-btn" onClick={() => setShowPatientsModal(false)}>Close</button>
             </div>
           </div>
         </div>
@@ -653,18 +954,18 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
           <button onClick={() => { setTranscription(''); setAiNote(null); setShowQuickActions(false); }}>
             🆕 New Dictation
           </button>
-          <button onClick={copyNoteToClipboard}>📋 Copy selected</button>
-          <button onClick={downloadNoteTxt}>💾 Save selected (.txt)</button>
-          <button onClick={selectAllSections}>✅ Select all sections</button>
-          <button onClick={clearAllSections}>🧹 Clear selections</button>
-          <button onClick={() => window.print()}>🖨️ Print Note</button>
-          <button onClick={() => alert('Stats feature coming soon!')}>📊 View Statistics</button>
+          <button onClick={() => { copyNoteToClipboard(); setShowQuickActions(false); }}>📋 Copy selected</button>
+          <button onClick={() => { downloadNoteTxt(); setShowQuickActions(false); }}>💾 Save selected (.txt)</button>
+          <button onClick={() => { selectAllSections(); setShowQuickActions(false); }}>✅ Select all sections</button>
+          <button onClick={() => { clearAllSections(); setShowQuickActions(false); }}>🧹 Clear selections</button>
+          <button onClick={() => { window.print(); setShowQuickActions(false); }}>🖨️ Print Note</button>
+          <button onClick={() => { alert('📊 Statistics\n\nToday\'s Encounters: ' + stats.todayEncounters + '\nActive Patients: ' + stats.activePatients + '\nAI Notes Generated: ' + stats.aiNotesGenerated + '\nTime Saved: ' + stats.timeSaved + 'h'); setShowQuickActions(false); }}>📊 View Statistics</button>
           <button onClick={() => setShowQuickActions(false)}>❌ Close</button>
         </div>
       )}
 
       {showSaveDropdown && (
-        <div className="dropdown-menu" style={{position: 'fixed', top: '380px', right: '48px', zIndex: 100}}>
+        <div className="dropdown-menu" style={{ position: 'fixed', top: '380px', right: '48px', zIndex: 100 }}>
           <button onClick={() => selectSaveOption('ai')} disabled={!aiNote}>
             🤖 AI Note Only {aiNote ? '' : '(Generate first)'}
           </button>
@@ -678,383 +979,482 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
         </div>
       )}
 
-      <div className="action-bar">
-        <button onClick={() => setShowSettings(!showSettings)} className="action-btn purple">⚙️ Settings</button>
-        <button onClick={() => setShowQuickActions(!showQuickActions)} className="action-btn orange">⚡ Quick Actions</button>
-        <button onClick={() => document.querySelector('.encounters-table')?.scrollIntoView({ behavior: 'smooth' })} className="action-btn green">📋 Encounters</button>
-      </div>
-
-      <div className="stats-grid">
-        <div className="stat-card purple">
-          <div className="stat-icon"><CalendarIcon /></div>
-          <div className="stat-info">
-            <div className="stat-label">Today's Encounters</div>
-            <div className="stat-value">{stats.todayEncounters}</div>
-            <div className="stat-sub">+1.2% from yesterday</div>
-          </div>
-        </div>
-
-        <div className="stat-card green" onClick={openPatientsList} style={{cursor: 'pointer'}}>
-          <div className="stat-icon"><UsersIcon /></div>
-          <div className="stat-info">
-            <div className="stat-label">Active Patients</div>
-            <div className="stat-value">{stats.activePatients}</div>
-            <div className="stat-sub">Total registered</div>
-          </div>
-        </div>
-
-        <div className="stat-card pink">
-          <div className="stat-icon"><SparklesIcon /></div>
-          <div className="stat-info">
-            <div className="stat-label">AI Notes Generated</div>
-            <div className="stat-value">{stats.aiNotesGenerated}</div>
-            <div className="stat-sub">Avg 90% accuracy</div>
-          </div>
-        </div>
-
-        <div className="stat-card orange">
-          <div className="stat-icon"><TimerIcon /></div>
-          <div className="stat-info">
-            <div className="stat-label">Time Saved</div>
-            <div className="stat-value">{stats.timeSaved}h</div>
-            <div className="stat-sub">Since last note</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="main-panels">
-        <div className="panel live-panel">
-          <div className="panel-header">
-            <span className="panel-icon red"><MicIcon /></span>
-            <div>
-              <h3>Live Dictation</h3>
-              <p>Powered by AI transcription</p>
+      {showMobileCodeModal && mobileSessionCode && (
+        <div className="modal-overlay" onClick={() => setShowMobileCodeModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center' }}>
+            <h2>📱 Connect Mobile Device</h2>
+            <div className="settings-section">
+              <p>Enter this code on your mobile app:</p>
+              <div style={{ 
+                fontSize: '48px', 
+                fontWeight: 'bold', 
+                letterSpacing: '8px', 
+                padding: '20px',
+                background: 'var(--surface2)',
+                borderRadius: '12px',
+                margin: '20px 0',
+                fontFamily: 'monospace'
+              }}>
+                {mobileSessionCode}
+              </div>
+              <p style={{ fontSize: '14px', color: 'var(--text-3)' }}>
+                Or scan the QR code with your phone camera
+              </p>
+              <p style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '20px' }}>
+                Session expires in 15 minutes
+              </p>
+            </div>
+            <div className="note-actions">
+              <button className="btn btn-primary" onClick={() => { navigator.clipboard.writeText(mobileSessionCode); pushToast('Code copied!', 'success'); }}>
+                📋 Copy Code
+              </button>
+              <button className="pdf-btn" onClick={() => setShowMobileCodeModal(false)}>Close</button>
             </div>
           </div>
-
-          <textarea
-            value={transcription}
-            onChange={(e) => setTranscription(e.target.value)}
-            onClick={() => {
-              if (transcription) {
-                navigator.clipboard.writeText(transcription).then(() => {
-                  pushToast('Transcript copied to clipboard', 'success')
-                }).catch(() => {})
-              }
-            }}
-            placeholder="Start recording to see real-time transcription...
-
-Your words will appear here as you speak
-
-(Click to copy)"
-            className="transcription-area"
-            rows="8"
-            style={{cursor: transcription ? 'pointer' : 'default'}}
-          />
-
-          <div className="upload-section">
-            <label className="upload-label">
-              Or Upload Audio File
-              <input type="file" accept="audio/*" style={{ display: 'none' }} />
-            </label>
-            <span className="no-file">No file chosen</span>
-          </div>
         </div>
+      )}
 
-        <div className="panel note-panel">
-          <div className="panel-header">
-            <span className="panel-icon green"><FileTextIcon /></span>
-            <div>
-              <h3>AI-Generated Note</h3>
-              <div className="note-sub">
-                <span className="subtle">Dental format</span>
+      <div className="content">
+        {currentPage === 'about' && <About />}
+        {currentPage === 'pricing' && <Pricing user={user} />}
+        
+        {currentPage === 'dashboard' && (
+          <>
+            {showOnboarding && stats.todayEncounters === 0 && stats.aiNotesGenerated === 0 && (
+              <div className="onboarding">
+                <div className="onboarding-icon">🚀</div>
+                <div className="onboarding-text">
+                  <strong>Get started with Clinvoice AI</strong>
+                  <span>Add your first patient, start a dictation, or configure your note templates.</span>
+                </div>
+                <div className="onboarding-actions">
+                  <button className="btn btn-ghost" style={{ fontSize: '12px' }} onClick={() => setShowOnboarding(false)}>Dismiss</button>
+                </div>
+              </div>
+            )}
+
+            <div className="stats-grid">
+              <div className="stat-card">
+                <div className="stat-icon" style={{ background: 'rgba(99,102,241,0.12)' }}>📅</div>
+                <div className="stat-body">
+                  <div className="stat-label">Today's Encounters</div>
+                  <div className="stat-value">{stats.todayEncounters}</div>
+                  <div className="stat-sub">{stats.todayEncounters > 0 ? 'Active today' : 'No activity yet today'}</div>
+                </div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-icon" style={{ background: 'rgba(16,185,129,0.12)' }}>👥</div>
+                <div className="stat-body">
+                  <div className="stat-label">Active Patients</div>
+                  <div className="stat-value">{stats.activePatients}</div>
+                  <div className="stat-sub">{stats.activePatients > 0 ? 'Total registered' : 'Add your first patient'}</div>
+                </div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-icon" style={{ background: 'rgba(244,114,182,0.12)' }}>✨</div>
+                <div className="stat-body">
+                  <div className="stat-label">AI Notes Generated</div>
+                  <div className="stat-value">{stats.aiNotesGenerated}</div>
+                  <div className="stat-sub">{stats.aiNotesGenerated > 0 ? 'Avg 90% accuracy' : 'Generate your first note'}</div>
+                </div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-icon" style={{ background: 'rgba(245,158,11,0.12)' }}>⏱</div>
+                <div className="stat-body">
+                  <div className="stat-label">Time Saved</div>
+                  <div className="stat-value">{stats.timeSaved}h</div>
+                  <div className="stat-sub">{stats.timeSaved > 0 ? 'Documentation automated' : 'Start saving time'}</div>
+                </div>
               </div>
             </div>
-            <button onClick={handleGenerate} disabled={!transcription || isGenerating} className="generate-btn">
-              {isGenerating ? '⏳ Generating...' : '✨ Generate'}
-            </button>
-            <button className="pdf-btn" onClick={copyNoteToClipboard} disabled={!aiNote}>📋 Copy</button>
-            <button className="pdf-btn" onClick={() => window.print()} disabled={!aiNote}>📄 PDF</button>
-            <button className="save-note-btn" onClick={openSaveDropdown} disabled={!aiNote && !transcription}>💾 Save ▼</button>
+
+            <div className="recent-patients">
+              <div className="section-header">
+                <div className="section-title">Recent Patients</div>
+                <button className="btn btn-ghost" style={{ fontSize: '12px', padding: '5px 10px' }} onClick={openPatientsList}>View all →</button>
+              </div>
+              <div className="patient-chips">
+                {recentEncounters.slice(0, 3).map(enc => (
+                  <div key={enc.id} className="patient-chip" onClick={() => setViewingEncounter(enc)}>
+                    <div className="patient-chip-avatar">{(enc.patient_name || 'UN').slice(0, 2).toUpperCase()}</div>
+                    <div>
+                      <div className="patient-chip-name">{enc.patient_name || 'Unknown'}</div>
+                      <div className="patient-chip-time">{new Date(enc.created_at).toLocaleDateString()}</div>
+                    </div>
+                  </div>
+                ))}
+                <div className="patient-chip" style={{ borderStyle: 'dashed' }} onClick={openSaveTranscript}>
+                  <div className="patient-chip-avatar" style={{ background: 'var(--surface2)', color: 'var(--text-3)', fontSize: '18px' }}>＋</div>
+                  <div>
+                    <div className="patient-chip-name" style={{ color: 'var(--text-3)' }}>Add Patient</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="panels-grid">
+              <div className="panel">
+                <div className="panel-header">
+                  <div className="panel-icon" style={{ background: 'rgba(16,185,129,0.12)' }}>🎙</div>
+                  <div>
+                    <div className="panel-title">Live Dictation</div>
+                    <div className="panel-sub">Powered by AI transcription</div>
+                  </div>
+                </div>
+                <div className="panel-body">
+                  <div className="input-source-selector" style={{ marginBottom: '16px', padding: '12px', background: 'var(--surface2)', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-3)', marginBottom: '8px' }}>Select Input Source:</div>
+                    <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                        <input 
+                          type="radio" 
+                          name="inputSource" 
+                          value="computer" 
+                          checked={inputSource === 'computer'} 
+                          onChange={(e) => { setInputSource(e.target.value); stopMobileSession(); }}
+                        />
+                        💻 Computer Microphone
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                        <input 
+                          type="radio" 
+                          name="inputSource" 
+                          value="mobile" 
+                          checked={inputSource === 'mobile'} 
+                          onChange={(e) => setInputSource(e.target.value)}
+                        />
+                        📱 Mobile Microphone
+                      </label>
+                    </div>
+                    
+                    {inputSource === 'mobile' && (
+                      <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
+                        {!mobileSessionCode ? (
+                          <button 
+                            className="btn btn-primary" 
+                            onClick={startMobileSession}
+                            style={{ fontSize: '13px', padding: '8px 16px' }}
+                          >
+                            📱 Start Mobile Session
+                          </button>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '13px' }}>
+                              {isMobileConnected ? (
+                                <span style={{ color: '#10b981', fontWeight: 600 }}>🟢 Mobile Connected</span>
+                              ) : (
+                                <span style={{ color: '#f59e0b' }}>🟡 Waiting for mobile...</span>
+                              )}
+                            </span>
+                            <button 
+                              className="btn btn-ghost" 
+                              onClick={() => setShowMobileCodeModal(true)}
+                              style={{ fontSize: '12px', padding: '4px 8px' }}
+                            >
+                              Show Code
+                            </button>
+                            <button 
+                              className="btn btn-ghost" 
+                              onClick={stopMobileSession}
+                              style={{ fontSize: '12px', padding: '4px 8px', color: '#ef4444' }}
+                            >
+                              Stop
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mic-row">
+                    <button className={`mic-btn ${isRecording ? 'recording' : ''}`} onClick={toggleRecording}>
+                      {isRecording ? '⏹' : '🎙'}
+                    </button>
+                    <div className="mic-info">
+                      <div className="mic-label">{isRecording ? 'Recording in progress...' : 'Click mic to start recording'}</div>
+                      <div className="mic-sub">{isRecording ? 'Speak clearly into your microphone' : 'Your words will appear in real-time'}</div>
+                    </div>
+                    {isRecording && <div className="rec-timer">{formatTime(recordingTime)}</div>}
+                  </div>
+
+                  {isRecording && (
+                    <div className="audio-level">
+                      <div className="audio-bar" style={{ '--h': '8px', animationDelay: '0s' }}></div>
+                      <div className="audio-bar" style={{ '--h': '18px', animationDelay: '0.1s' }}></div>
+                      <div className="audio-bar" style={{ '--h': '12px', animationDelay: '0.2s' }}></div>
+                      <div className="audio-bar" style={{ '--h': '22px', animationDelay: '0.3s' }}></div>
+                      <div className="audio-bar" style={{ '--h': '10px', animationDelay: '0.4s' }}></div>
+                      <div className="audio-bar" style={{ '--h': '16px', animationDelay: '0.5s' }}></div>
+                      <div className="audio-bar" style={{ '--h': '20px', animationDelay: '0.6s' }}></div>
+                      <div className="audio-bar" style={{ '--h': '8px', animationDelay: '0.7s' }}></div>
+                    </div>
+                  )}
+
+                  <textarea
+                    className="dictation-textarea"
+                    value={transcription}
+                    onChange={(e) => setTranscription(e.target.value)}
+                    placeholder="Click the mic to start recording..."
+                  />
+
+                  <div className="upload-zone">
+                    <span>📁</span>
+                    <span>Or upload an audio file (MP3, WAV, M4A)</span>
+                    <input type="file" accept=".mp3,.wav,.m4a,audio/*" style={{ display: 'none' }} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="panel">
+                <div className="panel-header">
+                  <div className="panel-icon" style={{ background: 'rgba(124,58,237,0.12)' }}>📄</div>
+                  <div>
+                    <div className="panel-title">AI-Generated Note</div>
+                    <div className="panel-sub">Dental format</div>
+                  </div>
+                </div>
+                <div className="panel-body">
+                  <div className="note-actions">
+                    <button className="btn btn-generate" onClick={handleGenerate} disabled={!transcription || isGenerating}>
+                      ✨ Generate <span className="shortcut-hint">⌘G</span>
+                    </button>
+                    <button className="btn btn-copy" onClick={copyNoteToClipboard} disabled={!aiNote}>
+                      📋 Copy <span className="shortcut-hint">⌘C</span>
+                    </button>
+                    <button className="btn btn-pdf" onClick={() => window.print()} disabled={!aiNote}>
+                      📄 PDF
+                    </button>
+                    <button className="btn btn-save" onClick={openSaveDropdown} disabled={!aiNote && !transcription}>
+                      💾 Save ▾
+                    </button>
+                  </div>
+
+                  {aiNote ? (
+                    <div className="note-preview">
+                      {aiNote.subjective && (
+                        <div className="soap-section">
+                          <strong>Subjective</strong>
+                          <p>{aiNote.subjective}</p>
+                        </div>
+                      )}
+                      {aiNote.objective && (
+                        <div className="soap-section">
+                          <strong>Objective</strong>
+                          <p>{aiNote.objective}</p>
+                        </div>
+                      )}
+                      {aiNote.assessment && (
+                        <div className="soap-section">
+                          <strong>Assessment</strong>
+                          <p>{aiNote.assessment}</p>
+                        </div>
+                      )}
+                      {aiNote.plan && (
+                        <div className="soap-section">
+                          <strong>Plan</strong>
+                          <p>{aiNote.plan}</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="note-empty">
+                      <div className="note-empty-icon">📝</div>
+                      <p>No note generated yet</p>
+                      <small>Dictate or type your notes, then click Generate</small>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="encounters-table">
+              <div className="table-header">
+                <span className="table-icon">📋</span>
+                <div className="section-title">Recent Encounters</div>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>PATIENT</th>
+                    <th>TOOTH/AREA</th>
+                    <th>DATE</th>
+                    <th>STATUS</th>
+                    <th>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentEncounters.map(enc => (
+                    <tr key={enc.id} style={{ cursor: 'pointer' }} onClick={() => setViewingEncounter(enc)}>
+                      <td>{enc.patient_name || 'Unknown'}</td>
+                      <td>{enc.tooth_number || '-'}</td>
+                      <td>{new Date(enc.created_at).toLocaleDateString()}</td>
+                      <td><span className={`status ${enc.status}`}>{enc.status}</span></td>
+                      <td><button className="view-btn" onClick={(e) => { e.stopPropagation(); setViewingEncounter(enc); }}>View</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+    </main>
+
+      {showSettings && (
+        <div className="modal-overlay" onClick={() => setShowSettings(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h2>⚙️ Settings</h2>
+            <div className="settings-section">
+              <p><strong>User:</strong> {user.userId}</p>
+              <p><strong>Domain:</strong> {user.domain}</p>
+              <p><strong>Theme:</strong> {theme}</p>
+              <p><strong>AI Model:</strong> Google Gemini Pro</p>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input type="checkbox" checked={autoGenerate} onChange={(e) => { setAutoGenerate(e.target.checked); try { localStorage.setItem('cv_auto_generate', e.target.checked ? '1' : '0') } catch { } }} />
+                Auto-generate note when recording stops
+              </label>
+            </div>
+            <button onClick={() => setShowSettings(false)} className="modal-close-btn">Close</button>
           </div>
+        </div>
+      )}
 
-          {aiNote ? (
-            <div className="soap-note">
-              {aiNote.chiefComplaint ? (
-                <>
-                  {/* Patient Info Header */}
-                  <div className="patient-info-header" style={{
-                    background: '#f0f7ff',
-                    border: '1px solid #dbeafe',
-                    borderRadius: '8px',
-                    padding: '12px 16px',
-                    marginBottom: '16px',
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gap: '8px 16px'
-                  }}>
-                    <div><strong>Patient:</strong> {aiNote.patient}</div>
-                    <div><strong>Date:</strong> {aiNote.date}</div>
-                    <div><strong>Dentist:</strong> {aiNote.dentist}</div>
-                    <div><strong>Visit Type:</strong> {aiNote.visitType}</div>
-                  </div>
+      {showAdmin && (
+        <AdminPanel onClose={() => setShowAdmin(false)} />
+      )}
 
-                  <div className={`soap-section ${selectedSections.size>0 && isSelected('chiefComplaint') ? 'selected-for-copy' : ''}`} style={{borderLeft: '4px solid #34d399', background: '#f0fdf4'}}>
-                    <div className="section-head" onClick={() => toggleSection('chiefComplaint')} role="button" style={{cursor: 'pointer'}}>
-                      <strong>🦷 Chief Complaint</strong>
-                      <label><input type="checkbox" checked={isSelected('chiefComplaint')} onChange={() => toggleSection('chiefComplaint')} /><span>Copy me</span></label>
-                    </div>
-                    <p style={{whiteSpace: 'pre-wrap', margin: '8px 0', lineHeight: '1.6'}}>{aiNote.chiefComplaint}</p>
-                  </div>
+      {showCopyModal && (
+        <div className="modal-overlay" onClick={() => setShowCopyModal(false)}>
+          <div className="modal-content copy-modal" onClick={(e) => e.stopPropagation()}>
+            <textarea className="copy-preview-text" value={copyPreview} onChange={(e) => setCopyPreview(e.target.value)} placeholder="Nothing selected yet" style={{ width: '100%', minHeight: '300px', padding: '14px', border: '1px solid var(--border)', borderRadius: '10px', background: 'var(--surface2)', color: 'var(--text)', fontFamily: 'inherit', fontSize: '14px', resize: 'vertical' }} />
+            <div className="note-actions" style={{ marginTop: '12px' }}>
+              <button className="btn btn-copy" onClick={async () => { try { await navigator.clipboard.writeText(copyPreview); pushToast('Copied!', 'success'); } catch { } }}>Copy</button>
+              <button className="btn btn-save" onClick={() => { navigator.clipboard.writeText(copyPreview).then(() => { setShowCopyModal(false); pushToast('Copied!', 'success'); }); }}>Copy & Close</button>
+              <button className="btn btn-ghost" onClick={() => setShowCopyModal(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
-                  <div className={`soap-section ${selectedSections.size>0 && isSelected('historyOfPresentIllness') ? 'selected-for-copy' : ''}`} style={{borderLeft: '4px solid #fb7185', background: '#fff1f2'}}>
-                    <div className="section-head" onClick={() => toggleSection('historyOfPresentIllness')} role="button" style={{cursor: 'pointer'}}>
-                      <strong>📋 History of Present Illness</strong>
-                      <label><input type="checkbox" checked={isSelected('historyOfPresentIllness')} onChange={() => toggleSection('historyOfPresentIllness')} /><span>Copy me</span></label>
-                    </div>
-                    <p style={{whiteSpace: 'pre-wrap', margin: '8px 0', lineHeight: '1.6'}}>{aiNote.historyOfPresentIllness}</p>
-                  </div>
+      {showSaveModal && (
+        <div className="modal-overlay" onClick={() => setShowSaveModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h2>💾 Save {saveType === 'ai' ? 'AI Note' : saveType === 'raw' ? 'Raw Transcript' : 'Both'}</h2>
+            <div className="settings-section">
+              <p><strong>Instructions:</strong> Enter patient name and tooth number to save securely.</p>
+              <input type="text" value={savePatientName} onChange={e => setSavePatientName(e.target.value)} placeholder="Patient Name" style={{ width: '100%', padding: '12px', marginBottom: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--surface2)', color: 'var(--text)' }} />
+              <input type="text" value={saveToothNumber} onChange={e => setSaveToothNumber(e.target.value)} placeholder="Tooth Number / Area" style={{ width: '100%', padding: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--surface2)', color: 'var(--text)' }} />
+            </div>
+            <div className="note-actions">
+              <button className="btn btn-save" onClick={saveTranscript}>✅ Preview & Save</button>
+              <button className="btn btn-ghost" onClick={() => setShowSaveModal(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
-                  <div className={`soap-section ${selectedSections.size>0 && isSelected('medicalHistory') ? 'selected-for-copy' : ''}`} style={{borderLeft: '4px solid #60a5fa', background: '#eff6ff'}}>
-                    <div className="section-head" onClick={() => toggleSection('medicalHistory')} role="button" style={{cursor: 'pointer'}}>
-                      <strong>⚕️ Medical History</strong>
-                      <label><input type="checkbox" checked={isSelected('medicalHistory')} onChange={() => toggleSection('medicalHistory')} /><span>Copy me</span></label>
-                    </div>
-                    <p style={{whiteSpace: 'pre-wrap', margin: '8px 0', lineHeight: '1.6'}}>{aiNote.medicalHistory}</p>
-                  </div>
+      {showPreviewModal && previewData && (
+        <div className="modal-overlay" onClick={() => setShowPreviewModal(false)}>
+          <div className="modal-content copy-modal" onClick={(e) => e.stopPropagation()}>
+            <h2>🔒 Preview</h2>
+            <div className="settings-section">
+              <p><strong>Patient:</strong> {previewData.patientName}</p>
+              <p><strong>Tooth/Area:</strong> {previewData.toothNumber || '-'}</p>
+              <p><strong>Dentist:</strong> {previewData.dentistName}</p>
+              <div style={{ marginTop: '12px', padding: '12px', background: 'var(--surface2)', borderRadius: '8px', maxHeight: '200px', overflow: 'auto' }}>
+                <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '13px', margin: 0 }}>{previewData.previewText}</pre>
+              </div>
+            </div>
+            <div className="note-actions">
+              <button className="btn btn-save" onClick={confirmSave}>🔒 Confirm Save</button>
+              <button className="btn btn-ghost" onClick={() => setShowPreviewModal(false)}>Edit</button>
+            </div>
+          </div>
+        </div>
+      )}
 
-                  <div className={`soap-section ${selectedSections.size>0 && isSelected('dentalHistory') ? 'selected-for-copy' : ''}`} style={{borderLeft: '4px solid #8b5cf6', background: '#faf5ff'}}>
-                    <div className="section-head" onClick={() => toggleSection('dentalHistory')} role="button" style={{cursor: 'pointer'}}>
-                      <strong>🪥 Dental History</strong>
-                      <label><input type="checkbox" checked={isSelected('dentalHistory')} onChange={() => toggleSection('dentalHistory')} /><span>Copy me</span></label>
-                    </div>
-                    <p style={{whiteSpace: 'pre-wrap', margin: '8px 0', lineHeight: '1.6'}}>{aiNote.dentalHistory}</p>
-                  </div>
-
-                  <div className={`soap-section ${selectedSections.size>0 && isSelected('intraOralExamination') ? 'selected-for-copy' : ''}`} style={{borderLeft: '4px solid #f59e0b', background: '#fffbeb'}}>
-                    <div className="section-head" onClick={() => toggleSection('intraOralExamination')} role="button" style={{cursor: 'pointer'}}>
-                      <strong>👁️ Intraoral Examination</strong>
-                      <label><input type="checkbox" checked={isSelected('intraOralExamination')} onChange={() => toggleSection('intraOralExamination')} /><span>Copy me</span></label>
-                    </div>
-                    <p style={{whiteSpace: 'pre-wrap', margin: '8px 0', lineHeight: '1.6'}}>{aiNote.intraOralExamination}</p>
-                  </div>
-
-                  <div className={`soap-section ${selectedSections.size>0 && isSelected('diagnosticProcedures') ? 'selected-for-copy' : ''}`} style={{borderLeft: '4px solid #06b6d4', background: '#ecfeff'}}>
-                    <div className="section-head" onClick={() => toggleSection('diagnosticProcedures')} role="button" style={{cursor: 'pointer'}}>
-                      <strong>🔬 Diagnostic Procedures</strong>
-                      <label><input type="checkbox" checked={isSelected('diagnosticProcedures')} onChange={() => toggleSection('diagnosticProcedures')} /><span>Copy me</span></label>
-                    </div>
-                    <p style={{whiteSpace: 'pre-wrap', margin: '8px 0', lineHeight: '1.6'}}>{aiNote.diagnosticProcedures}</p>
-                  </div>
-
-                  <div className={`soap-section ${selectedSections.size>0 && isSelected('assessment') ? 'selected-for-copy' : ''}`} style={{borderLeft: '4px solid #ef4444', background: '#fef2f2'}}>
-                    <div className="section-head" onClick={() => toggleSection('assessment')} role="button" style={{cursor: 'pointer'}}>
-                      <strong>📊 Assessment</strong>
-                      <label><input type="checkbox" checked={isSelected('assessment')} onChange={() => toggleSection('assessment')} /><span>Copy me</span></label>
-                    </div>
-                    <p style={{whiteSpace: 'pre-wrap', margin: '8px 0', lineHeight: '1.6'}}>{aiNote.assessment}</p>
-                  </div>
-
-                  <div className={`soap-section ${selectedSections.size>0 && isSelected('educationRecommendations') ? 'selected-for-copy' : ''}`} style={{borderLeft: '4px solid #84cc16', background: '#f7fee7'}}>
-                    <div className="section-head" onClick={() => toggleSection('educationRecommendations')} role="button" style={{cursor: 'pointer'}}>
-                      <strong>📚 Education & Recommendations</strong>
-                      <label><input type="checkbox" checked={isSelected('educationRecommendations')} onChange={() => toggleSection('educationRecommendations')} /><span>Copy me</span></label>
-                    </div>
-                    <p style={{whiteSpace: 'pre-wrap', margin: '8px 0', lineHeight: '1.6'}}>{aiNote.educationRecommendations}</p>
-                  </div>
-
-                  <div className={`soap-section ${selectedSections.size>0 && isSelected('patientResponse') ? 'selected-for-copy' : ''}`} style={{borderLeft: '4px solid #14b8a6', background: '#f0fdfa'}}>
-                    <div className="section-head" onClick={() => toggleSection('patientResponse')} role="button" style={{cursor: 'pointer'}}>
-                      <strong>💬 Patient Response</strong>
-                      <label><input type="checkbox" checked={isSelected('patientResponse')} onChange={() => toggleSection('patientResponse')} /><span>Copy me</span></label>
-                    </div>
-                    <p style={{whiteSpace: 'pre-wrap', margin: '8px 0', lineHeight: '1.6'}}>{aiNote.patientResponse}</p>
-                  </div>
-
-                  <div className={`soap-section ${selectedSections.size>0 && isSelected('plan') ? 'selected-for-copy' : ''}`} style={{borderLeft: '4px solid #6366f1', background: '#eef2ff'}}>
-                    <div className="section-head" onClick={() => toggleSection('plan')} role="button" style={{cursor: 'pointer'}}>
-                      <strong>📋 Plan</strong>
-                      <label><input type="checkbox" checked={isSelected('plan')} onChange={() => toggleSection('plan')} /><span>Copy me</span></label>
-                    </div>
-                    <p style={{whiteSpace: 'pre-wrap', margin: '8px 0', lineHeight: '1.6'}}>{aiNote.plan}</p>
-                  </div>
-                </>
+      {showPatientsModal && (
+        <div className="modal-overlay" onClick={() => setShowPatientsModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h2>👥 Active Patients</h2>
+            <div className="settings-section">
+              {patientsList.length > 0 ? (
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid var(--border)' }}>Name</th>
+                      <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid var(--border)' }}>Phone</th>
+                      <th style={{ textAlign: 'left', padding: '8px', borderBottom: '1px solid var(--border)' }}>Last Visit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {patientsList.map(p => (
+                      <tr key={p.id}>
+                        <td style={{ padding: '8px', borderBottom: '1px solid var(--border)' }}>{p.name}</td>
+                        <td style={{ padding: '8px', borderBottom: '1px solid var(--border)' }}>{p.phone || '-'}</td>
+                        <td style={{ padding: '8px', borderBottom: '1px solid var(--border)' }}>{p.last_visit ? new Date(p.last_visit).toLocaleDateString() : '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               ) : (
-                <>
-                  <div className={`soap-section ${selectedSections.size>0 && isSelected('subjective') ? 'selected-for-copy' : ''}`} onClick={() => toggleSection('subjective')} role="button">
-                    <div className="section-head">
-                      <strong>📝 Subjective</strong>
-                      <label onClick={(e)=>e.stopPropagation()}><input type="checkbox" checked={isSelected('subjective')} readOnly /><span>Copy me</span></label>
-                    </div>
-                    <p>{aiNote.subjective}</p>
-                  </div>
-
-                  <div className={`soap-section ${selectedSections.size>0 && isSelected('objective') ? 'selected-for-copy' : ''}`} onClick={() => toggleSection('objective')} role="button">
-                    <div className="section-head">
-                      <strong>🔬 Objective</strong>
-                      <label onClick={(e)=>e.stopPropagation()}><input type="checkbox" checked={isSelected('objective')} readOnly /><span>Copy me</span></label>
-                    </div>
-                    <p>{aiNote.objective}</p>
-                  </div>
-
-                  <div className={`soap-section ${selectedSections.size>0 && isSelected('assessment') ? 'selected-for-copy' : ''}`} onClick={() => toggleSection('assessment')} role="button">
-                    <div className="section-head">
-                      <strong>🩺 Assessment</strong>
-                      <label onClick={(e)=>e.stopPropagation()}><input type="checkbox" checked={isSelected('assessment')} readOnly /><span>Copy me</span></label>
-                    </div>
-                    <p>{aiNote.assessment}</p>
-                  </div>
-
-                  <div className={`soap-section ${selectedSections.size>0 && isSelected('plan') ? 'selected-for-copy' : ''}`} onClick={() => toggleSection('plan')} role="button">
-                    <div className="section-head">
-                      <strong>📋 Plan</strong>
-                      <label onClick={(e)=>e.stopPropagation()}><input type="checkbox" checked={isSelected('plan')} readOnly /><span>Copy me</span></label>
-                    </div>
-                    <p>{aiNote.plan}</p>
-                  </div>
-                </>
+                <p>No patients found.</p>
               )}
-
-
-              <div className="note-actions">
-                <button
-                  className="save-note-btn"
-                  onClick={async () => {
-                    if (!aiNote) return
-                    try {
-                      if (aiNote.sessionId) {
-                        await fetch(`/api/sessions/${aiNote.sessionId}`, {
-                          method: 'PUT',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ ai_notes: JSON.stringify(aiNote), status: 'finalized' })
-                        })
-                        alert('Note saved!')
-                      } else {
-                        downloadNoteTxt()
-                      }
-                    } catch (err) {
-                      console.error(err)
-                      alert('Failed to save note')
-                    }
-                  }}
-                >
-                  💾 Save Note
-                </button>
-                <button className="pdf-btn" onClick={copyNoteToClipboard}>📋 Copy Text</button>
-                <button className="pdf-btn" onClick={() => window.print()}>
-                  📄 PDF
-                </button>
-              </div>
             </div>
-          ) : (
-            <div className="empty-note">
-              <div className="empty-icon">📝</div>
-              <p>No note generated yet</p>
-              <small>Click "Generate" to create an AI-powered SOAP note</small>
+            <div className="note-actions">
+              <button className="btn btn-ghost" onClick={() => setShowPatientsModal(false)}>Close</button>
             </div>
-          )}
+          </div>
         </div>
-      </div>
-
-      <div className="encounters-table">
-        <div className="table-header">
-          <span className="table-icon">📋</span>
-          <h3>Recent Encounters</h3>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>PATIENT</th>
-              <th>TOOTH/AREA</th>
-              <th>DATE</th>
-              <th>STATUS</th>
-              <th>ACTIONS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recentEncounters.map(enc => (
-              <tr key={enc.id} style={{cursor: 'pointer'}} onClick={() => setViewingEncounter(enc)}>
-                <td>{enc.patient_name || 'Unknown'}</td>
-                <td>{enc.tooth_number || '-'}</td>
-                <td>{new Date(enc.created_at).toLocaleDateString()}</td>
-                <td><span className={`status ${enc.status}`}>{enc.status}</span></td>
-                <td><button className="view-btn" onClick={(e) => { e.stopPropagation(); setViewingEncounter(enc); }}>View</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      )}
 
       {viewingEncounter && (
         <div className="modal-overlay" onClick={() => setViewingEncounter(null)}>
-          <div className="modal-content copy-modal" onClick={(e) => e.stopPropagation()} style={{maxWidth: '800px', maxHeight: '80vh', overflow: 'auto'}}>
+          <div className="modal-content copy-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px', maxHeight: '80vh', overflow: 'auto' }}>
             <h2>📝 Encounter Details</h2>
             <div className="settings-section">
-              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px', padding: '12px', background: '#f8fafc', borderRadius: '8px'}}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px', padding: '12px', background: 'var(--surface2)', borderRadius: '8px' }}>
                 <div><strong>Patient:</strong> {viewingEncounter.patient_name || 'Unknown'}</div>
                 <div><strong>Tooth/Area:</strong> {viewingEncounter.tooth_number || '-'}</div>
                 <div><strong>Date:</strong> {new Date(viewingEncounter.created_at).toLocaleString()}</div>
                 <div><strong>Status:</strong> <span className={`status ${viewingEncounter.status}`}>{viewingEncounter.status}</span></div>
               </div>
-              
               {viewingEncounter.ai_notes && (
-                <div style={{marginTop: '16px'}}>
+                <div style={{ marginTop: '16px' }}>
                   <strong>AI Note:</strong>
-                  <div style={{marginTop: '8px', padding: '12px', background: '#f0fdf4', borderRadius: '8px', borderLeft: '4px solid #10b981', maxHeight: '300px', overflow: 'auto'}}>
-                    <pre style={{whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '14px', margin: 0}}>{typeof viewingEncounter.ai_notes === 'string' ? viewingEncounter.ai_notes : JSON.stringify(viewingEncounter.ai_notes, null, 2)}</pre>
+                  <div style={{ marginTop: '8px', padding: '12px', background: 'var(--surface2)', borderRadius: '8px', borderLeft: '4px solid var(--brand-green)', maxHeight: '300px', overflow: 'auto' }}>
+                    <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '14px', margin: 0 }}>{typeof viewingEncounter.ai_notes === 'string' ? viewingEncounter.ai_notes : JSON.stringify(viewingEncounter.ai_notes, null, 2)}</pre>
                   </div>
                 </div>
               )}
-              
               {viewingEncounter.transcript && (
-                <div style={{marginTop: '16px'}}>
+                <div style={{ marginTop: '16px' }}>
                   <strong>Raw Transcript:</strong>
-                  <div style={{marginTop: '8px', padding: '12px', background: '#fef3c7', borderRadius: '8px', borderLeft: '4px solid #f59e0b', maxHeight: '200px', overflow: 'auto'}}>
-                    <pre style={{whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '14px', margin: 0}}>{viewingEncounter.transcript}</pre>
+                  <div style={{ marginTop: '8px', padding: '12px', background: 'var(--surface2)', borderRadius: '8px', borderLeft: '4px solid var(--brand-orange)', maxHeight: '200px', overflow: 'auto' }}>
+                    <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '14px', margin: 0 }}>{viewingEncounter.transcript}</pre>
                   </div>
                 </div>
               )}
             </div>
             <div className="note-actions">
-              <button className="pdf-btn" onClick={() => window.print()}>🖨️ Print</button>
-              <button className="save-note-btn" onClick={() => {
-                try {
-                  const aiNoteText = viewingEncounter.ai_notes 
-                    ? (typeof viewingEncounter.ai_notes === 'string' 
-                      ? viewingEncounter.ai_notes 
-                      : JSON.stringify(viewingEncounter.ai_notes, null, 2))
-                    : ''
-                  const transcriptText = viewingEncounter.transcript || ''
-                  const text = `Patient: ${viewingEncounter.patient_name || 'Unknown'}
-Tooth/Area: ${viewingEncounter.tooth_number || '-'}
-Date: ${new Date(viewingEncounter.created_at).toLocaleString()}
-Status: ${viewingEncounter.status || 'unknown'}
-
-${aiNoteText ? 'AI NOTE:\n' + aiNoteText + '\n\n' : ''}${transcriptText ? 'RAW TRANSCRIPT:\n' + transcriptText : ''}`
-                  
-                  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
-                  const url = URL.createObjectURL(blob)
-                  const a = document.createElement('a')
-                  a.href = url
-                  const safeName = (viewingEncounter.patient_name || 'Unknown').replace(/[^a-zA-Z0-9]/g, '_')
-                  const dateStr = new Date(viewingEncounter.created_at).toISOString().slice(0,10)
-                  a.download = `Encounter_${safeName}_${dateStr}.txt`
-                  document.body.appendChild(a)
-                  a.click()
-                  document.body.removeChild(a)
-                  URL.revokeObjectURL(url)
-                  pushToast('Download started', 'success')
-                } catch (err) {
-                  console.error('Download failed:', err)
-                  pushToast('Download failed', 'error')
-                }
+              <button className="btn btn-ghost" onClick={() => window.print()}>🖨️ Print</button>
+              <button className="btn btn-save" onClick={() => {
+                const text = `Patient: ${viewingEncounter.patient_name || 'Unknown'}\nDate: ${new Date(viewingEncounter.created_at).toLocaleString()}\n\n${viewingEncounter.ai_notes || ''}\n\n${viewingEncounter.transcript || ''}`
+                const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `Encounter_${viewingEncounter.patient_name || 'Unknown'}_${new Date(viewingEncounter.created_at).toISOString().slice(0, 10)}.txt`
+                a.click()
+                URL.revokeObjectURL(url)
+                pushToast('Downloaded!', 'success')
               }}>💾 Download</button>
-              <button className="pdf-btn" onClick={()=>setViewingEncounter(null)}>Close</button>
+              <button className="btn btn-ghost" onClick={() => setViewingEncounter(null)}>Close</button>
             </div>
           </div>
         </div>
       )}
-    </div >
+    </div>
   )
 }
 
