@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import './MainDashboard.css'
 import { CalendarIcon, UsersIcon, SparklesIcon, TimerIcon, MicIcon, FileTextIcon } from './Icons'
+import { QRCodeSVG } from 'qrcode.react'
 import AdminPanel from './AdminPanel'
 import About from './About'
 import Pricing from './Pricing'
@@ -993,23 +994,36 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center' }}>
             <h2>📱 Connect Mobile Device</h2>
             <div className="settings-section">
-              <p>Enter this code on your mobile app:</p>
+              <p>Scan this QR code with your mobile app:</p>
               <div style={{ 
-                fontSize: '48px', 
-                fontWeight: 'bold', 
-                letterSpacing: '8px', 
                 padding: '20px',
-                background: 'var(--surface2)',
+                background: 'white',
                 borderRadius: '12px',
                 margin: '20px 0',
+                display: 'inline-block'
+              }}>
+                <QRCodeSVG 
+                  value={`clinivoice://connect?code=${mobileSessionCode}&user=${user.userId}`}
+                  size={200}
+                  level={"H"}
+                />
+              </div>
+              <p style={{ fontSize: '14px', color: 'var(--text-3)', marginTop: '16px' }}>
+                Or enter this code manually:
+              </p>
+              <div style={{ 
+                fontSize: '36px', 
+                fontWeight: 'bold', 
+                letterSpacing: '8px', 
+                padding: '16px',
+                background: 'var(--surface2)',
+                borderRadius: '8px',
+                margin: '10px 0',
                 fontFamily: 'monospace'
               }}>
                 {mobileSessionCode}
               </div>
-              <p style={{ fontSize: '14px', color: 'var(--text-3)' }}>
-                Or scan the QR code with your phone camera
-              </p>
-              <p style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '20px' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-3)', marginTop: '16px' }}>
                 Session expires in 15 minutes
               </p>
             </div>
