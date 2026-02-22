@@ -1,7 +1,14 @@
 // Stripe Integration Module for Subscription Management
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../database');
 const logger = require('./logger');
+
+let stripe = null;
+if (process.env.STRIPE_SECRET_KEY) {
+    stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    logger.info('Stripe initialized');
+} else {
+    logger.warn('Stripe not configured - STRIPE_SECRET_KEY not found');
+}
 
 /**
  * Create Stripe Checkout Session for subscription

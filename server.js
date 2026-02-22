@@ -823,6 +823,10 @@ app.get('/api/subscription-status', checkAuth, async (req, res) => {
 // Create Stripe checkout session
 app.post('/api/create-checkout-session', checkAuth, async (req, res) => {
     try {
+        if (!process.env.STRIPE_SECRET_KEY) {
+            return res.status(503).json({ error: 'Stripe not configured. Please add STRIPE_SECRET_KEY to environment variables.' });
+        }
+
         const { planId } = req.body;
         if (!planId) {
             return res.status(400).json({ error: 'Plan ID required' });
@@ -848,6 +852,10 @@ app.post('/api/create-checkout-session', checkAuth, async (req, res) => {
 
 // Stripe webhook endpoint
 app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
+        return res.status(503).json({ error: 'Stripe not configured' });
+    }
+
     const sig = req.headers['stripe-signature'];
 
     try {
@@ -869,6 +877,10 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
 // Cancel subscription
 app.post('/api/cancel-subscription', checkAuth, async (req, res) => {
     try {
+        if (!process.env.STRIPE_SECRET_KEY) {
+            return res.status(503).json({ error: 'Stripe not configured' });
+        }
+
         const subscription = await db.getUserSubscription(req.user.id);
         if (!subscription) {
             return res.status(404).json({ error: 'No active subscription found' });
