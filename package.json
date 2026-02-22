@@ -8,10 +8,11 @@
         "dev": "node server.js",
         "dev:all": "concurrently \"npm run dev\" \"npm run dev:desktop\"",
         "dev:desktop": "cd desktop && npm run dev",
-        "build": "cd desktop && npm run build",
-        "build:desktop": "cd desktop && npm run build",
+        "build": "cd desktop && npm install && npm run build",
+        "build:desktop": "cd desktop && npm install && npm run build",
         "setup": "node setup.js",
         "install:all": "npm install && cd desktop && npm install",
+        "postinstall": "cd desktop && npm install",
         "test": "echo \"No tests configured\" && exit 0",
         "lint": "echo \"Linting not configured\" && exit 0"
     },
