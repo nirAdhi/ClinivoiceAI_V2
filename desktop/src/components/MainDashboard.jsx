@@ -994,7 +994,7 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center' }}>
             <h2>📱 Connect Mobile Device</h2>
             <div className="settings-section">
-              <p>Scan this QR code with your mobile app:</p>
+              <p>Scan this QR code with your phone camera or enter the code manually:</p>
               <div style={{ 
                 padding: '20px',
                 background: 'white',
@@ -1003,13 +1003,13 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                 display: 'inline-block'
               }}>
                 <QRCodeSVG 
-                  value={`clinivoice://connect?code=${mobileSessionCode}&user=${user.userId}`}
+                  value={mobileSessionCode}
                   size={200}
                   level={"H"}
                 />
               </div>
               <p style={{ fontSize: '14px', color: 'var(--text-3)', marginTop: '16px' }}>
-                Or enter this code manually:
+                Or enter this code in the mobile app:
               </p>
               <div style={{ 
                 fontSize: '36px', 
