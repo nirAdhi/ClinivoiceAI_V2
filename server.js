@@ -91,15 +91,21 @@ wss.on('connection', (ws, req) => {
                     // Update session status
                     await db.updateMobileSession(data.sessionCode, { status: 'active' });
                     
-                    // Store connection
+                    // Store connection - remove any existing mobile connection first
                     if (!mobileConnections.has(data.sessionCode)) {
                         mobileConnections.set(data.sessionCode, { mobile: null, web: null, session });
+                    } else {
+                        // Clean up old connections
+                        const existingConn = mobileConnections.get(data.sessionCode);
+                        if (existingConn.mobile && existingConn.mobile.readyState === WebSocket.OPEN) {
+                            existingConn.mobile.close();
+                        }
                     }
                     mobileConnections.get(data.sessionCode).mobile = ws;
                     
                     // Notify web client if exists
                     const conn = mobileConnections.get(data.sessionCode);
-                    if (conn.web) {
+                    if (conn.web && conn.web.readyState === WebSocket.OPEN) {
                         conn.web.send(JSON.stringify({ type: 'mobile_connected', sessionCode: data.sessionCode }));
                     }
                     

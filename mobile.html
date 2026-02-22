@@ -79,6 +79,7 @@
         const userId = urlParams.get('user') || 'user';
         
         let ws = null;
+        let reconnectTimer = null;
         let mediaRecorder = null;
         let audioChunks = [];
         let isRecording = false;
@@ -86,6 +87,7 @@
         let timerInterval = null;
         let recognition = null;
         let finalTranscript = '';
+        let isAuthenticated = false;
         
         const statusEl = document.getElementById('status');
         const micBtn = document.getElementById('micBtn');
@@ -135,6 +137,7 @@
                 console.log('WS message:', data.type);
                 
                 if (data.type === 'authenticated') {
+                    isAuthenticated = true;
                     statusEl.textContent = 'Ready to record';
                     connectedBox.style.display = 'block';
                     connectedBox.textContent = '✓ Connected to computer';
@@ -143,6 +146,7 @@
                 } else if (data.type === 'error') {
                     showError(data.message);
                 } else if (data.type === 'session_closed') {
+                    isAuthenticated = false;
                     showError('Session closed by computer');
                     stopRecording();
                 } else if (data.type === 'web_disconnected') {
@@ -154,9 +158,14 @@
             ws.onclose = (event) => {
                 console.log('WebSocket closed:', event.code, event.reason);
                 connectedBox.style.display = 'none';
-                statusEl.textContent = 'Disconnected (code: ' + event.code + ')';
                 micBtn.disabled = true;
-                if (event.code !== 1000) {
+                
+                if (isAuthenticated) {
+                    // Was connected before, try to reconnect
+                    statusEl.textContent = 'Reconnecting...';
+                    setTimeout(connectWebSocket, 3000);
+                } else if (event.code !== 1000) {
+                    statusEl.textContent = 'Disconnected (code: ' + event.code + ')';
                     showError('Failed to connect. Make sure the session is active on your computer.');
                 }
                 stopRecording();
