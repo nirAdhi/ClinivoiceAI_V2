@@ -386,8 +386,12 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
       setMobileSessionCode(data.sessionCode)
       setShowMobileCodeModal(true)
       
-      // Connect WebSocket
-      const wsUrl = `ws://localhost:3000?sessionCode=${data.sessionCode}&userId=${user.userId}&type=web`
+      // Connect WebSocket - use current host
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const wsHost = window.location.host
+      const wsUrl = `${wsProtocol}//${wsHost}?sessionCode=${data.sessionCode}&userId=${user.userId}&type=web`
+      console.log('Connecting to WebSocket:', wsUrl)
+      
       const ws = new WebSocket(wsUrl)
       
       ws.onopen = () => {
@@ -418,9 +422,14 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
         }
       }
       
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error)
+      }
+      
       ws.onclose = () => {
-        setIsMobileConnected(false)
-        setMobileSessionCode(null)
+        console.log('WebSocket closed')
+        // Don't close modal on WebSocket disconnect - let user manually close
+        // setMobileSessionCode(null)
       }
       
       mobileWsRef.current = ws
