@@ -994,7 +994,7 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center' }}>
             <h2>📱 Connect Mobile Device</h2>
             <div className="settings-section">
-              <p>Scan this QR code with your phone camera or enter the code manually:</p>
+              <p>Scan this QR code with your phone camera:</p>
               <div style={{ 
                 padding: '20px',
                 background: 'white',
@@ -1003,13 +1003,13 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                 display: 'inline-block'
               }}>
                 <QRCodeSVG 
-                  value={mobileSessionCode}
+                  value={`${window.location.origin}/mobile?code=${mobileSessionCode}&user=${user.userId}`}
                   size={200}
                   level={"H"}
                 />
               </div>
               <p style={{ fontSize: '14px', color: 'var(--text-3)', marginTop: '16px' }}>
-                Or enter this code in the mobile app:
+                Or enter this code manually in the mobile app:
               </p>
               <div style={{ 
                 fontSize: '36px', 

@@ -31,6 +31,11 @@ app.get('/', (req, res) => {
     res.redirect('/desktop');
 });
 
+// Mobile microphone web page
+app.get('/mobile', (req, res) => {
+    res.sendFile(path.join(__dirname, 'mobile.html'));
+});
+
 // SPA fallback for /desktop routes (must be after static assets)
 app.get('/desktop/*', (req, res) => {
     res.sendFile(path.join(__dirname, 'desktop', 'dist', 'index.html'));
