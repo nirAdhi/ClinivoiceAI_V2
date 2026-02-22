@@ -138,7 +138,7 @@
                 
                 if (data.type === 'authenticated') {
                     isAuthenticated = true;
-                    statusEl.textContent = 'Ready to record';
+                    statusEl.textContent = 'Ready to record - tap mic to start';
                     connectedBox.style.display = 'block';
                     connectedBox.textContent = '✓ Connected to computer';
                     connectedBox.className = 'connected';
@@ -150,8 +150,8 @@
                     showError('Session closed by computer');
                     stopRecording();
                 } else if (data.type === 'web_disconnected') {
-                    connectedBox.style.display = 'none';
-                    showError('Computer disconnected. Please wait...');
+                    // Computer still there, just not listening
+                    connectedBox.textContent = '✓ Connected (waiting for computer)';
                 }
             };
             
@@ -160,20 +160,20 @@
                 connectedBox.style.display = 'none';
                 micBtn.disabled = true;
                 
-                if (isAuthenticated) {
-                    // Was connected before, try to reconnect
+                if (isAuthenticated && event.code === 1000) {
+                    // Intentionally closed
+                    statusEl.textContent = 'Disconnected';
+                } else if (isAuthenticated) {
+                    // Was connected, try to reconnect
                     statusEl.textContent = 'Reconnecting...';
                     setTimeout(connectWebSocket, 3000);
-                } else if (event.code !== 1000) {
-                    statusEl.textContent = 'Disconnected (code: ' + event.code + ')';
-                    showError('Failed to connect. Make sure the session is active on your computer.');
                 }
                 stopRecording();
             };
             
             ws.onerror = (error) => {
                 console.error('WebSocket error:', error);
-                showError('Failed to connect to server. Check console for details.');
+                statusEl.textContent = 'Connection error';
             };
         }
         

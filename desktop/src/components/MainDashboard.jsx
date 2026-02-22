@@ -397,15 +397,30 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
       
       ws.onopen = () => {
         console.log('Connected to mobile session')
-        ws.send(JSON.stringify({ type: 'session_info', sessionCode: data.sessionCode }))
+        // Request current session status
+        ws.send(JSON.stringify({ type: 'get_session_status' }))
       }
       
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data)
+        console.log('WebSocket received:', data.type)
         
         if (data.type === 'mobile_connected') {
           setIsMobileConnected(true)
           pushToast('Mobile device connected! Start dictation from your phone.', 'success')
+        }
+        else if (data.type === 'session_status') {
+          // Check if mobile is already connected
+          if (data.mobileConnected) {
+            setIsMobileConnected(true)
+          }
+        }
+        else if (data.type === 'session_info') {
+          // Session info received, mobile might already be connected
+          console.log('Session info:', data.session)
+          if (data.session && data.session.status === 'active') {
+            setIsMobileConnected(true)
+          }
         }
         else if (data.type === 'mobile_disconnected') {
           setIsMobileConnected(false)
@@ -413,6 +428,7 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
           pushToast('Mobile device disconnected', 'error')
         }
         else if (data.type === 'transcript') {
+          console.log('Received transcript:', data.transcript)
           if (data.isFinal) {
             finalTranscriptRef.current += data.transcript + ' '
           }

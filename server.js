@@ -187,7 +187,20 @@ wss.on('connection', (ws, req) => {
                 const data = JSON.parse(message);
                 const conn = mobileConnections.get(ws.sessionCode);
                 
-                if (data.type === 'request_transcript' && conn && conn.mobile) {
+                if (data.type === 'get_session_status' && conn) {
+                    // Send current session status to web
+                    ws.send(JSON.stringify({ 
+                        type: 'session_status',
+                        mobileConnected: conn.mobile && conn.mobile.readyState === WebSocket.OPEN,
+                        session: conn.session
+                    }));
+                    
+                    // Also notify if mobile is connected
+                    if (conn.mobile && conn.mobile.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ type: 'mobile_connected', sessionCode: ws.sessionCode }));
+                    }
+                }
+                else if (data.type === 'request_transcript' && conn && conn.mobile) {
                     // Web client requesting real-time transcript from mobile
                     conn.mobile.send(JSON.stringify({ type: 'request_transcript' }));
                 }
