@@ -56,6 +56,11 @@
         <div id="errorBox" style="display: none;"></div>
         <div id="connectedBox" style="display: none;"></div>
         
+        <div id="transcriptPreview" style="display: none; background: #1f2937; padding: 16px; border-radius: 12px; margin: 20px 0; max-height: 150px; overflow-y: auto;">
+            <p style="color: #6b7280; font-size: 12px; margin-bottom: 8px;">What you're saying:</p>
+            <p id="transcriptText" style="color: #fff; font-size: 16px;"></p>
+        </div>
+        
         <button class="mic-btn" id="micBtn" disabled>🎤</button>
         <div class="timer" id="timer">00:00</div>
         
@@ -208,17 +213,23 @@
             recognition.onresult = (event) => {
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     const transcript = event.results[i][0].transcript;
+                    console.log('Speech detected:', transcript, 'isFinal:', event.results[i].isFinal);
+                    
+                    // Show preview of what's being said
+                    document.getElementById('transcriptPreview').style.display = 'block';
+                    document.getElementById('transcriptText').textContent = transcript;
+                    
                     if (event.results[i].isFinal) {
-                        // Only send final transcripts to avoid duplicates
+                        // Send final transcript to server
                         if (ws && ws.readyState === WebSocket.OPEN) {
                             ws.send(JSON.stringify({
                                 type: 'transcript',
                                 transcript: transcript,
                                 isFinal: true
                             }));
+                            console.log('Sent transcript:', transcript);
                         }
                     }
-                    // Don't send interim results - they cause duplicates
                 }
             };
             
@@ -269,6 +280,7 @@
             micBtn.classList.remove('recording');
             micBtn.textContent = '🎤';
             infoBox.style.display = 'none';
+            document.getElementById('transcriptPreview').style.display = 'none';
             statusEl.textContent = 'Recording stopped';
             finalTranscript = '';
             
