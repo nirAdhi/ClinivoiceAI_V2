@@ -205,29 +205,33 @@
                 return;
             }
             
+            // Stop any existing recognition
+            if (recognition) {
+                try { recognition.stop(); } catch(e) {}
+            }
+            
             recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = true;
+            recognition.continuous = false; // Don't auto-restart
+            recognition.interimResults = false; // Only get final results to avoid duplicates
             recognition.lang = 'en-US';
             
             recognition.onresult = (event) => {
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    const transcript = event.results[i][0].transcript;
-                    console.log('Speech detected:', transcript, 'isFinal:', event.results[i].isFinal);
+                for (let i = 0; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript.trim();
+                    console.log('Final transcript:', transcript);
                     
-                    // Show preview of what's being said
-                    document.getElementById('transcriptPreview').style.display = 'block';
-                    document.getElementById('transcriptText').textContent = transcript;
-                    
-                    if (event.results[i].isFinal) {
-                        // Send final transcript to server
+                    if (transcript && event.results[i].isFinal) {
+                        // Show preview
+                        document.getElementById('transcriptPreview').style.display = 'block';
+                        document.getElementById('transcriptText').textContent = transcript;
+                        
+                        // Send to server
                         if (ws && ws.readyState === WebSocket.OPEN) {
                             ws.send(JSON.stringify({
                                 type: 'transcript',
                                 transcript: transcript,
                                 isFinal: true
                             }));
-                            console.log('Sent transcript:', transcript);
                         }
                     }
                 }
@@ -237,17 +241,28 @@
                 console.error('Speech recognition error:', event.error);
                 if (event.error === 'not-allowed') {
                     showError('Microphone access denied');
+                } else if (event.error !== 'aborted' && isRecording) {
+                    // Restart on error (except manual stop)
+                    setTimeout(() => {
+                        if (isRecording && recognition) {
+                            try { recognition.start(); } catch(e) {}
+                        }
+                    }, 100);
                 }
             };
             
             recognition.onend = () => {
-                if (isRecording) {
-                    // Restart if still recording
-                    recognition.start();
+                // Restart if still recording
+                if (isRecording && recognition) {
+                    try { recognition.start(); } catch(e) {}
                 }
             };
             
-            recognition.start();
+            try {
+                recognition.start();
+            } catch(e) {
+                console.log('Recognition start error:', e);
+            }
             
             // Notify server that recording started
             if (ws && ws.readyState === WebSocket.OPEN) {

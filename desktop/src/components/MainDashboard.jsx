@@ -437,6 +437,9 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
         }
         else if (data.type === 'mobile_recording_started') {
           setIsRecording(true)
+          // Clear previous transcript when starting new recording
+          setTranscription('')
+          finalTranscriptRef.current = ''
           pushToast('Mobile is recording...', 'success')
         }
         else if (data.type === 'mobile_recording_stopped') {
