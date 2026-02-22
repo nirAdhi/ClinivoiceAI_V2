@@ -6,9 +6,21 @@ const logger = require('./middleware/logger');
 
 const isDev = process.env.NODE_ENV !== 'production';
 
-// Support Railway DATABASE_URL format
+// Support Railway MySQL environment variables
 let dbConfig;
-if (process.env.DATABASE_URL) {
+if (process.env.MYSQL_URL) {
+    const url = new URL(process.env.MYSQL_URL);
+    dbConfig = {
+        host: url.hostname,
+        port: url.port || 3306,
+        user: url.username,
+        password: url.password,
+        database: url.pathname.replace('/', ''),
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0
+    };
+} else if (process.env.DATABASE_URL) {
     const url = new URL(process.env.DATABASE_URL);
     dbConfig = {
         host: url.hostname,
@@ -16,6 +28,18 @@ if (process.env.DATABASE_URL) {
         user: url.username,
         password: url.password,
         database: url.pathname.replace('/', ''),
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0
+    };
+} else if (process.env.MYSQLHOST) {
+    // Railway provides separate MySQL environment variables
+    dbConfig = {
+        host: process.env.MYSQLHOST,
+        port: parseInt(process.env.MYSQLPORT) || 3306,
+        user: process.env.MYSQLUSER || 'root',
+        password: process.env.MYSQLPASSWORD || '',
+        database: process.env.MYSQLDATABASE || 'railway',
         waitForConnections: true,
         connectionLimit: 10,
         queueLimit: 0
