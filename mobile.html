@@ -60,14 +60,15 @@
         <div class="timer" id="timer">00:00</div>
         
         <div class="info" id="infoBox" style="display: none;">
-            <p>🔴 Recording... Speak into your phone's microphone</p>
-            <p>Audio is streaming to your computer in real-time</p>
+            <p>🔴 Recording & transcribing...</p>
+            <p>Speech is being converted to text in real-time</p>
         </div>
         
         <div class="info">
             <p><strong>Instructions:</strong></p>
-            <p>• Tap the microphone to start recording</p>
+            <p>• Tap the microphone to start</p>
             <p>• Speak clearly into your phone</p>
+            <p>• Speech is transcribed in real-time</p>
             <p>• Transcription appears on your computer</p>
         </div>
     </div>
@@ -83,6 +84,8 @@
         let isRecording = false;
         let recordingTime = 0;
         let timerInterval = null;
+        let recognition = null;
+        let finalTranscript = '';
         
         const statusEl = document.getElementById('status');
         const micBtn = document.getElementById('micBtn');
@@ -180,60 +183,91 @@
         });
         
         async function startRecording() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                
-                mediaRecorder = new MediaRecorder(stream);
-                audioChunks = [];
-                
-                mediaRecorder.ondataavailable = (e) => {
-                    if (e.data.size > 0) {
-                        audioChunks.push(e.data);
-                        
-                        // Send audio data to server
+            // Use Web Speech API for real-time transcription
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                showError('Speech recognition not supported on this device');
+                return;
+            }
+            
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+            
+            recognition.onresult = (event) => {
+                let interim = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript + ' ';
+                        // Send final transcript to server
                         if (ws && ws.readyState === WebSocket.OPEN) {
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                                ws.send(JSON.stringify({
-                                    type: 'audio',
-                                    audio: reader.result
-                                }));
-                            };
-                            reader.readAsDataURL(e.data);
+                            ws.send(JSON.stringify({
+                                type: 'transcript',
+                                transcript: transcript,
+                                isFinal: true
+                            }));
+                        }
+                    } else {
+                        interim += transcript;
+                        // Send interim results
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({
+                                type: 'transcript',
+                                transcript: interim,
+                                isFinal: false
+                            }));
                         }
                     }
-                };
-                
-                mediaRecorder.onstop = () => {
-                    stream.getTracks().forEach(track => track.stop());
-                };
-                
-                mediaRecorder.start(1000); // Send every 1 second
-                
-                isRecording = true;
-                micBtn.classList.add('recording');
-                micBtn.textContent = '⏹️';
-                infoBox.style.display = 'block';
-                statusEl.textContent = 'Recording...';
-                
-                // Start timer
-                recordingTime = 0;
-                timerInterval = setInterval(() => {
-                    recordingTime++;
-                    const mins = Math.floor(recordingTime / 60);
-                    const secs = recordingTime % 60;
-                    timerEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-                }, 1000);
-                
+                }
+            };
+            
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                if (event.error === 'not-allowed') {
+                    showError('Microphone access denied');
+                }
+            };
+            
+            recognition.onend = () => {
+                if (isRecording) {
+                    // Restart if still recording
+                    recognition.start();
+                }
+            };
+            
+            recognition.start();
+            
+            // Also get microphone for visual feedback
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach(track => track.stop());
             } catch (err) {
-                console.error('Error starting recording:', err);
-                showError('Microphone access denied. Please allow microphone access.');
+                console.log('Mic stream error:', err);
             }
+            
+            isRecording = true;
+            micBtn.classList.add('recording');
+            micBtn.textContent = '⏹️';
+            infoBox.style.display = 'block';
+            statusEl.textContent = 'Recording & transcribing...';
+            
+            // Start timer
+            recordingTime = 0;
+            timerInterval = setInterval(() => {
+                recordingTime++;
+                const mins = Math.floor(recordingTime / 60);
+                const secs = recordingTime % 60;
+                timerEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }, 1000);
         }
         
         function stopRecording() {
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop();
+            if (recognition) {
+                recognition.stop();
+                recognition = null;
             }
             
             isRecording = false;
@@ -241,6 +275,7 @@
             micBtn.textContent = '🎤';
             infoBox.style.display = 'none';
             statusEl.textContent = 'Recording stopped';
+            finalTranscript = '';
             
             if (timerInterval) {
                 clearInterval(timerInterval);
