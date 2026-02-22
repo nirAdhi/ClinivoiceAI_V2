@@ -61,9 +61,29 @@ const pool = mysql.createPool(dbConfig);
 const promisePool = pool.promise();
 
 logger.success('MySQL connection pool created');
+logger.info(`Database config: host=${dbConfig.host}, port=${dbConfig.port}, database=${dbConfig.database}`);
+
+// Retry connection function
+async function testConnection(retries = 5, delay = 2000) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            await promisePool.query('SELECT 1');
+            logger.success('Database connection verified');
+            return true;
+        } catch (err) {
+            logger.warn(`Database connection attempt ${i + 1} failed: ${err.message}`);
+            if (i < retries - 1) {
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+    throw new Error('Failed to connect to database after retries');
+}
 
 async function initializeTables() {
     try {
+        // Wait for database to be ready
+        await testConnection();
         await promisePool.query(`
             CREATE TABLE IF NOT EXISTS patients (
                 id INT AUTO_INCREMENT PRIMARY KEY,
