@@ -18,6 +18,14 @@ const PORT = process.env.PORT || 3000;
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+// Use the same server for both HTTP and WebSocket
+server.listen(PORT, () => {
+    logger.info(`\n✅ Clinvoice AI Server Running`);
+    logger.info(`🚀 http://localhost:${PORT}`);
+    logger.info(`🖥️  Desktop: http://localhost:${PORT}/desktop`);
+    logger.info(`📱 Mobile: http://localhost:${PORT}/mobile\n`);
+});
+
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
 
@@ -1076,11 +1084,5 @@ app.get('/api/admin/analytics', async (req, res) => {
         console.error('Error fetching analytics:', error);
         res.status(500).json({ error: 'Database error' });
     }
-});
-
-app.listen(PORT, () => {
-    logger.info(`\n✅ Clinvoice AI Server Running`);
-    logger.info(`🚀 http://localhost:${PORT}`);
-    logger.info(`🖥️  Desktop: http://localhost:${PORT}/desktop\n`);
 });
 
