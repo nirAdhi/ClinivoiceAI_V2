@@ -206,12 +206,10 @@
             recognition.lang = 'en-US';
             
             recognition.onresult = (event) => {
-                let interim = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     const transcript = event.results[i][0].transcript;
                     if (event.results[i].isFinal) {
-                        finalTranscript += transcript + ' ';
-                        // Send final transcript to server
+                        // Only send final transcripts to avoid duplicates
                         if (ws && ws.readyState === WebSocket.OPEN) {
                             ws.send(JSON.stringify({
                                 type: 'transcript',
@@ -219,17 +217,8 @@
                                 isFinal: true
                             }));
                         }
-                    } else {
-                        interim += transcript;
-                        // Send interim results
-                        if (ws && ws.readyState === WebSocket.OPEN) {
-                            ws.send(JSON.stringify({
-                                type: 'transcript',
-                                transcript: interim,
-                                isFinal: false
-                            }));
-                        }
                     }
+                    // Don't send interim results - they cause duplicates
                 }
             };
             
@@ -252,14 +241,6 @@
             // Notify server that recording started
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ type: 'mobile_recording_started' }));
-            }
-            
-            // Also get microphone for visual feedback
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                stream.getTracks().forEach(track => track.stop());
-            } catch (err) {
-                console.log('Mic stream error:', err);
             }
             
             isRecording = true;

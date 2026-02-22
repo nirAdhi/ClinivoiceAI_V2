@@ -428,11 +428,12 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
           pushToast('Mobile device disconnected', 'error')
         }
         else if (data.type === 'transcript') {
-          console.log('Received transcript:', data.transcript)
+          console.log('Received transcript:', data.transcript, 'isFinal:', data.isFinal)
+          // Only add final transcripts to avoid duplicates
           if (data.isFinal) {
             finalTranscriptRef.current += data.transcript + ' '
+            setTranscription(finalTranscriptRef.current.trim())
           }
-          setTranscription((finalTranscriptRef.current + (data.isFinal ? '' : '[...] ' + data.transcript)).trim())
         }
         else if (data.type === 'mobile_recording_started') {
           setIsRecording(true)
