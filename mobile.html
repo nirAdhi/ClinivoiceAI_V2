@@ -109,12 +109,13 @@
             ws = new WebSocket(wsUrl);
             
             ws.onopen = () => {
-                console.log('WebSocket connected');
-                statusEl.textContent = `Connected to session: ${sessionCode}`;
-                connectedBox.style.display = 'block';
-                connectedBox.textContent = '✓ Connected to computer';
-                connectedBox.className = 'connected';
-                micBtn.disabled = false;
+                console.log('WebSocket connected, sending auth...');
+                statusEl.textContent = 'Authenticating...';
+                // Send auth message to verify session
+                ws.send(JSON.stringify({ 
+                    type: 'auth', 
+                    sessionCode: sessionCode 
+                }));
             };
             
             ws.onmessage = (event) => {
@@ -123,6 +124,10 @@
                 
                 if (data.type === 'authenticated') {
                     statusEl.textContent = 'Ready to record';
+                    connectedBox.style.display = 'block';
+                    connectedBox.textContent = '✓ Connected to computer';
+                    connectedBox.className = 'connected';
+                    micBtn.disabled = false;
                 } else if (data.type === 'error') {
                     showError(data.message);
                 } else if (data.type === 'session_closed') {
