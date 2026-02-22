@@ -240,6 +240,11 @@
             
             recognition.start();
             
+            // Notify server that recording started
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'mobile_recording_started' }));
+            }
+            
             // Also get microphone for visual feedback
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -282,8 +287,9 @@
                 timerInterval = null;
             }
             
-            // Send stop signal
+            // Send stop and recording stopped signals
             if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'mobile_recording_stopped' }));
                 ws.send(JSON.stringify({ type: 'stop' }));
             }
         }

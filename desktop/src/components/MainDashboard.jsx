@@ -405,10 +405,11 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
         
         if (data.type === 'mobile_connected') {
           setIsMobileConnected(true)
-          pushToast('Mobile device connected!', 'success')
+          pushToast('Mobile device connected! Start dictation from your phone.', 'success')
         }
         else if (data.type === 'mobile_disconnected') {
           setIsMobileConnected(false)
+          setIsRecording(false)
           pushToast('Mobile device disconnected', 'error')
         }
         else if (data.type === 'transcript') {
@@ -416,6 +417,13 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
             finalTranscriptRef.current += data.transcript + ' '
           }
           setTranscription((finalTranscriptRef.current + (data.isFinal ? '' : '[...] ' + data.transcript)).trim())
+        }
+        else if (data.type === 'mobile_recording_started') {
+          setIsRecording(true)
+          pushToast('Mobile is recording...', 'success')
+        }
+        else if (data.type === 'mobile_recording_stopped') {
+          setIsRecording(false)
         }
         else if (data.type === 'mobile_stopped') {
           setIsRecording(false)
@@ -1190,14 +1198,39 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                   </div>
 
                   <div className="mic-row">
-                    <button className={`mic-btn ${isRecording ? 'recording' : ''}`} onClick={toggleRecording}>
-                      {isRecording ? '⏹' : '🎙'}
-                    </button>
-                    <div className="mic-info">
-                      <div className="mic-label">{isRecording ? 'Recording in progress...' : 'Click mic to start recording'}</div>
-                      <div className="mic-sub">{isRecording ? 'Speak clearly into your microphone' : 'Your words will appear in real-time'}</div>
-                    </div>
-                    {isRecording && <div className="rec-timer">{formatTime(recordingTime)}</div>}
+                    {inputSource === 'mobile' && isMobileConnected ? (
+                      <>
+                        <button className={`mic-btn ${isRecording ? 'recording' : ''}`} disabled style={{ opacity: 0.5 }}>
+                          📱
+                        </button>
+                        <div className="mic-info">
+                          <div className="mic-label" style={{ color: '#10b981' }}>🟢 Mobile Connected - Recording Active</div>
+                          <div className="mic-sub">Use your phone to dictate. Speak into your phone microphone.</div>
+                        </div>
+                        {isRecording && <div className="rec-timer">{formatTime(recordingTime)}</div>}
+                      </>
+                    ) : inputSource === 'mobile' && mobileSessionCode ? (
+                      <>
+                        <button className="mic-btn" disabled style={{ opacity: 0.5 }}>
+                          📱
+                        </button>
+                        <div className="mic-info">
+                          <div className="mic-label" style={{ color: '#f59e0b' }}>🟡 Waiting for mobile...</div>
+                          <div className="mic-sub">Open the link on your phone and tap the microphone to start dictation</div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <button className={`mic-btn ${isRecording ? 'recording' : ''}`} onClick={toggleRecording}>
+                          {isRecording ? '⏹' : '🎙'}
+                        </button>
+                        <div className="mic-info">
+                          <div className="mic-label">{isRecording ? 'Recording in progress...' : 'Click mic to start recording'}</div>
+                          <div className="mic-sub">{isRecording ? 'Speak clearly into your microphone' : 'Your words will appear in real-time'}</div>
+                        </div>
+                        {isRecording && <div className="rec-timer">{formatTime(recordingTime)}</div>}
+                      </>
+                    )}
                   </div>
 
                   {isRecording && (
@@ -1217,7 +1250,8 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                     className="dictation-textarea"
                     value={transcription}
                     onChange={(e) => setTranscription(e.target.value)}
-                    placeholder="Click the mic to start recording..."
+                    placeholder={inputSource === 'mobile' && mobileSessionCode ? "Transcription will appear here automatically as you speak on your phone..." : "Click the mic to start recording..."}
+                    readOnly={inputSource === 'mobile' && isMobileConnected}
                   />
 
                   <div className="upload-zone">
