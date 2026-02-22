@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import './Login.css'
-import { FileTextIcon } from './Icons'
 
 function Login({ onLogin, theme, onToggleTheme }) {
-    const [mode, setMode] = useState('login') // login | register | forgot | reset
+    const [mode, setMode] = useState('login')
     const [userId, setUserId] = useState('')
     const [password, setPassword] = useState('')
     const [domain, setDomain] = useState('')
@@ -11,6 +10,7 @@ function Login({ onLogin, theme, onToggleTheme }) {
     const [email, setEmail] = useState('')
     const [resetToken, setResetToken] = useState('')
     const [newPassword, setNewPassword] = useState('')
+    const [rememberMe, setRememberMe] = useState(false)
 
     const [captchaQ, setCaptchaQ] = useState(() => {
         const a = Math.floor(Math.random() * 10) + 1
@@ -22,7 +22,21 @@ function Login({ onLogin, theme, onToggleTheme }) {
     const [showPass, setShowPass] = useState(false)
     const [showRegPass, setShowRegPass] = useState(false)
     const [showResetPass, setShowResetPass] = useState(false)
-    const [logoLoaded, setLogoLoaded] = useState(false)
+
+    const getPasswordStrength = (pwd) => {
+        if (!pwd) return { score: 0, label: '', color: '#e2e8f0' }
+        let score = 0
+        if (pwd.length >= 8) score++
+        if (pwd.length >= 12) score++
+        if (/[A-Z]/.test(pwd)) score++
+        if (/[a-z]/.test(pwd)) score++
+        if (/[0-9]/.test(pwd)) score++
+        if (/[^A-Za-z0-9]/.test(pwd)) score++
+        if (score <= 2) return { score, label: 'Weak', color: '#ef4444' }
+        if (score <= 4) return { score, label: 'Fair', color: '#f59e0b' }
+        return { score, label: 'Strong', color: '#10b981' }
+    }
+    const passwordStrength = getPasswordStrength(password)
 
     const regenCaptcha = () => {
         const a = Math.floor(Math.random() * 10) + 1
@@ -37,9 +51,16 @@ function Login({ onLogin, theme, onToggleTheme }) {
         if (parseInt(captchaInput, 10) !== captchaQ.answer) { setAuthError('Captcha incorrect'); regenCaptcha(); return }
         try {
             const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, password }) })
-            const data = await res.json()
+            let data = {}
+            try { data = await res.json() } catch { data = {} }
             if (!res.ok) throw new Error(data.error || 'Invalid credentials')
-            const { domain: userDomain } = data
+
+            if (data.token) {
+                localStorage.setItem('clinivoice_token', data.token)
+                localStorage.setItem('clinivoice_user', JSON.stringify(data.user))
+            }
+
+            const { domain: userDomain } = data.user || data
             onLogin(userId, userDomain)
         } catch (err) { setAuthError(err.message || 'Login failed') }
     }
@@ -49,7 +70,7 @@ function Login({ onLogin, theme, onToggleTheme }) {
         try {
             setAuthError('')
             const res = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, password, domain: domain || 'dental', name, email }) })
-            const data = await res.json().catch(()=>({}))
+            const data = await res.json().catch(() => ({}))
             if (!res.ok) throw new Error((data && data.error) || (res.status === 409 ? 'User already exists' : 'Registration failed'))
             setMode('login')
         } catch (err) { setAuthError(err.message || 'Registration failed') }
@@ -59,9 +80,10 @@ function Login({ onLogin, theme, onToggleTheme }) {
         e.preventDefault()
         try {
             const res = await fetch('/api/request-password-reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) })
-            const data = await res.json()
+            let data = {}
+            try { data = await res.json() } catch { data = {} }
             if (!res.ok) throw new Error(data.error || 'Failed')
-            setResetToken(data.token) // In production: token emailed. For dev: show in UI.
+            setResetToken(data.token)
             setMode('reset')
         } catch (err) { alert(err.message || 'Failed') }
     }
@@ -70,110 +92,208 @@ function Login({ onLogin, theme, onToggleTheme }) {
         e.preventDefault()
         try {
             const res = await fetch('/api/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: resetToken, newPassword }) })
-            const data = await res.json()
+            let data = {}
+            try { data = await res.json() } catch { data = {} }
             if (!res.ok) throw new Error(data.error || 'Reset failed')
             setMode('login')
         } catch (err) { setAuthError(err.message || 'Failed') }
     }
 
     return (
-        <div className="login-container">
-            <button className="theme-toggle-btn" onClick={onToggleTheme}>
+        <div className="login-container" data-theme={theme}>
+            <button className="theme-toggle-btn" onClick={onToggleTheme} type="button" title="Toggle theme">
                 {theme === 'dark' ? '☀️' : '🌙'}
             </button>
 
             <div className="login-card">
-                <div className="brand-lockup">
-                    <img src="clinivoice-logo.png" alt="Clinvoice AI" onLoad={()=>setLogoLoaded(true)} onError={(e)=>{ e.currentTarget.style.display='none'; setLogoLoaded(false) }} />
-                    {!logoLoaded && <FileTextIcon />}
-                    <div className="brand-caption">Clinvoice <span>AI</span></div>
+                {/* Logo Section */}
+                <div className="login-logo-section">
+                    <div className="login-logo">
+                        <img 
+                            src="/desktop/clinivoice-logo.png" 
+                            alt="Clinvoice AI" 
+                            onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.parentElement.innerHTML = '<span class="logo-emoji">🧠</span>' }}
+                        />
+                    </div>
+                    <h1 className="login-brand-name">Clinvoice AI</h1>
+                    <p className="login-brand-tagline">AI-Powered Clinical Documentation</p>
                 </div>
 
-                <h1>Welcome Back</h1>
-                <p>Sign in to continue</p>
-
                 {mode === 'login' && (
-                    <form onSubmit={submitLogin}>
-                        <div className="input-row">
-                            <input type="text" placeholder="Username or Email" value={userId} onChange={(e) => setUserId(e.target.value)} required />
-                            <span className="right-icon" aria-hidden>👤</span>
+                    <>
+                        <div className="login-header-text">
+                            <h2>Welcome Back</h2>
+                            <p>Sign in to continue</p>
                         </div>
-                        <div className="input-row">
-                            <input type={showPass ? 'text' : 'password'} placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-                            <button type="button" className="right-action" onClick={()=>setShowPass(p=>!p)} aria-label="Toggle password">
-                                {showPass ? '🙈' : '👁️'}
-                            </button>
+
+                        <form onSubmit={submitLogin}>
+                            <div className="form-group">
+                                <label className="form-label">Username or Email</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="you@clinic.com" 
+                                    value={userId} 
+                                    onChange={(e) => setUserId(e.target.value)} 
+                                    required 
+                                />
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Password</label>
+                                <div className="input-wrap">
+                                    <input 
+                                        type={showPass ? 'text' : 'password'} 
+                                        placeholder="••••••••" 
+                                        value={password} 
+                                        onChange={(e) => setPassword(e.target.value)} 
+                                        required 
+                                    />
+                                    <span className="input-icon-right" onClick={() => setShowPass(!showPass)}>
+                                        {showPass ? '🙈' : '👁️'}
+                                    </span>
+                                </div>
+                                {password && (
+                                    <div className="password-strength">
+                                        <div className="strength-bar">
+                                            <div className="strength-fill" style={{ width: `${(passwordStrength.score / 6) * 100}%`, background: passwordStrength.color }}></div>
+                                        </div>
+                                        <span className="strength-label" style={{ color: passwordStrength.color }}>{passwordStrength.label}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="captcha-row">
+                                <div className="captcha-badge">{captchaQ.text}</div>
+                                <button type="button" className="captcha-refresh" onClick={regenCaptcha}>↻</button>
+                                <input 
+                                    type="number" 
+                                    className="captcha-input" 
+                                    placeholder="?" 
+                                    value={captchaInput} 
+                                    onChange={(e) => setCaptchaInput(e.target.value)} 
+                                    required 
+                                />
+                            </div>
+
+                            <div className="form-row">
+                                <label className="remember-me">
+                                    <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
+                                    <span>Remember me</span>
+                                </label>
+                                <span className="forgot-link" onClick={() => setMode('forgot')}>Forgot password?</span>
+                            </div>
+
+                            {authError && <div className="auth-error">{authError}</div>}
+
+                            <button type="submit" className="btn-signin">Sign In</button>
+                        </form>
+
+                        <div className="login-footer">
+                            <p>Don't have an account? <span className="link" onClick={() => setMode('register')}>Register</span></p>
                         </div>
-                        {/* domain selection omitted in login to match design; backend returns domain */}
-                        <div className="captcha-row">
-                            <label className="captcha-label">Captcha:</label>
-                            <div className="captcha-box">{captchaQ.text}</div>
-                            <button type="button" className="captcha-refresh" onClick={regenCaptcha} title="Refresh captcha">↻</button>
-                        </div>
-                        <input className="captcha-input" type="number" value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} placeholder="Enter captcha answer" required />
-                        {authError && <div className="auth-error" role="alert">{authError}</div>}
-                        <button type="submit">Sign In</button>
-                        <div style={{ marginTop: 12, textAlign: 'left' }}>
-                            <a href="#" onClick={(e)=>{e.preventDefault(); setMode('forgot')}}>Forgot Password?</a>
-                            <span style={{ float: 'right' }}>
-                                Don't have an account? <a href="#" onClick={(e)=>{e.preventDefault(); setMode('register')}}>Register Now</a>
-                            </span>
-                        </div>
-                    </form>
+                    </>
                 )}
 
                 {mode === 'register' && (
-                    <form onSubmit={submitRegister}>
-                        <input type="text" placeholder="User ID" value={userId} onChange={(e)=>setUserId(e.target.value)} required />
-                        <div className="input-row">
-                            <input type={showRegPass ? 'text' : 'password'} placeholder="Password" value={password} onChange={(e)=>setPassword(e.target.value)} required />
-                            <button type="button" className="right-action" onClick={()=>setShowRegPass(p=>!p)} aria-label="Toggle password">{showRegPass ? '🙈' : '👁️'}</button>
+                    <>
+                        <div className="login-header-text">
+                            <h2>Create Account</h2>
+                            <p>Join Clinvoice AI today</p>
                         </div>
-                        <input type="text" placeholder="Full Name (optional)" value={name} onChange={(e)=>setName(e.target.value)} />
-                        <input type="email" placeholder="Email (optional)" value={email} onChange={(e)=>setEmail(e.target.value)} />
-                        <select value={domain} onChange={(e)=>setDomain(e.target.value)} required>
-                            <option value="">Select Domain</option>
-                            <option value="dental">🦷 Dental</option>
-                            <option value="medical">🏥 Medical</option>
-                        </select>
-                        {authError && <div className="auth-error" role="alert">{authError}</div>}
-                        <button type="submit">Create Account</button>
-                        <div style={{ marginTop: 12 }}>
-                            Already have an account? <a href="#" onClick={(e)=>{e.preventDefault(); setMode('login')}}>Sign In</a>
+
+                        <form onSubmit={submitRegister}>
+                            <div className="form-row-2">
+                                <div className="form-group">
+                                    <label className="form-label">Name</label>
+                                    <input type="text" placeholder="Dr. Smith" value={name} onChange={(e) => setName(e.target.value)} />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Email</label>
+                                    <input type="email" placeholder="you@clinic.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                                </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Username</label>
+                                <input type="text" placeholder="drsmith" value={userId} onChange={(e) => setUserId(e.target.value)} required />
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Domain</label>
+                                <select value={domain} onChange={(e) => setDomain(e.target.value)}>
+                                    <option value="dental">Dental</option>
+                                    <option value="medical">Medical</option>
+                                    <option value="veterinary">Veterinary</option>
+                                </select>
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Password</label>
+                                <div className="input-wrap">
+                                    <input type={showRegPass ? 'text' : 'password'} placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                                    <span className="input-icon-right" onClick={() => setShowRegPass(!showRegPass)}>
+                                        {showRegPass ? '🙈' : '👁️'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {authError && <div className="auth-error">{authError}</div>}
+
+                            <button type="submit" className="btn-signin">Create Account</button>
+                        </form>
+
+                        <div className="login-footer">
+                            <p>Already have an account? <span className="link" onClick={() => setMode('login')}>Sign in</span></p>
                         </div>
-                    </form>
+                    </>
                 )}
 
                 {mode === 'forgot' && (
-                    <form onSubmit={submitForgot}>
-                        <input type="text" placeholder="Enter your User ID" value={userId} onChange={(e)=>setUserId(e.target.value)} required />
-                        <button type="submit">Request Reset</button>
-                        <div style={{ marginTop: 12 }}>
-                            <a href="#" onClick={(e)=>{e.preventDefault(); setMode('login')}}>Back to Sign In</a>
+                    <>
+                        <div className="login-header-text">
+                            <h2>Reset Password</h2>
+                            <p>Enter your username to receive a reset link</p>
                         </div>
-                    </form>
+
+                        <form onSubmit={submitForgot}>
+                            <div className="form-group">
+                                <label className="form-label">Username</label>
+                                <input type="text" placeholder="drsmith" value={userId} onChange={(e) => setUserId(e.target.value)} required />
+                            </div>
+
+                            <button type="submit" className="btn-signin">Send Reset Link</button>
+                        </form>
+
+                        <div className="login-footer">
+                            <span className="link" onClick={() => setMode('login')}>← Back to login</span>
+                        </div>
+                    </>
                 )}
 
                 {mode === 'reset' && (
-                    <form onSubmit={submitReset}>
-                        <input type="text" placeholder="Paste reset token" value={resetToken} onChange={(e)=>setResetToken(e.target.value)} required />
-                        <div className="input-row">
-                            <input type={showResetPass ? 'text' : 'password'} placeholder="New Password" value={newPassword} onChange={(e)=>setNewPassword(e.target.value)} required />
-                            <button type="button" className="right-action" onClick={()=>setShowResetPass(p=>!p)} aria-label="Toggle password">{showResetPass ? '🙈' : '👁️'}</button>
+                    <>
+                        <div className="login-header-text">
+                            <h2>Set New Password</h2>
+                            <p>Enter your new password</p>
                         </div>
-                        {authError && <div className="auth-error" role="alert">{authError}</div>}
-                        <button type="submit">Set New Password</button>
-                        <div style={{ marginTop: 12 }}>
-                            <a href="#" onClick={(e)=>{e.preventDefault(); setMode('login')}}>Back to Sign In</a>
-                        </div>
-                    </form>
-                )}
 
-                <div className="login-footer-links">
-                    <a href="#">Secure Login</a>
-                    <a href="#">Terms of Service</a>
-                    <a href="#">Privacy Policy</a>
-                </div>
+                        <form onSubmit={submitReset}>
+                            <div className="form-group">
+                                <label className="form-label">New Password</label>
+                                <div className="input-wrap">
+                                    <input type={showResetPass ? 'text' : 'password'} placeholder="••••••••" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
+                                    <span className="input-icon-right" onClick={() => setShowResetPass(!showResetPass)}>
+                                        {showResetPass ? '🙈' : '👁️'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {authError && <div className="auth-error">{authError}</div>}
+
+                            <button type="submit" className="btn-signin">Reset Password</button>
+                        </form>
+                    </>
+                )}
             </div>
         </div>
     )

@@ -1,0 +1,664 @@
+/* Pricing Page Container */
+.pricing-page {
+    padding: 0;
+    max-width: 1200px;
+    margin: 0 auto;
+    min-height: 100vh;
+    background: var(--bg, #f8fafc);
+    font-family: 'Inter', 'DM Sans', sans-serif;
+}
+
+[data-theme="dark"] .pricing-page {
+    background: #0f172a;
+}
+
+/* Loading State */
+.pricing-loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    gap: 16px;
+}
+
+.loader-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #e2e8f0;
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Hero Section */
+.pricing-hero {
+    text-align: center;
+    padding: 60px 20px 50px;
+    background: linear-gradient(180deg, #f0f4ff 0%, #f8fafc 100%);
+}
+
+[data-theme="dark"] .pricing-hero {
+    background: linear-gradient(180deg, #1e1b4b 0%, #0f172a 100%);
+}
+
+.pricing-hero-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    padding: 8px 20px;
+    border-radius: 50px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+}
+
+.pricing-hero-title {
+    font-size: 42px;
+    font-weight: 800;
+    color: #1e293b;
+    margin: 0 0 12px 0;
+    letter-spacing: -1px;
+}
+
+[data-theme="dark"] .pricing-hero-title {
+    color: #f8fafc;
+}
+
+.pricing-hero-subtitle {
+    font-size: 18px;
+    color: #64748b;
+    margin: 0;
+    max-width: 500px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+/* Trust Badges */
+.trust-badges {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 28px;
+    flex-wrap: wrap;
+}
+
+.trust-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: white;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #475569;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .trust-badge {
+    background: #1e293b;
+    color: #cbd5e1;
+}
+
+.trust-icon {
+    font-size: 18px;
+}
+
+/* Pricing Cards Container */
+.pricing-cards-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    padding: 0 20px;
+    margin-top: -30px;
+    position: relative;
+    z-index: 10;
+}
+
+@media (max-width: 900px) {
+    .pricing-cards-container {
+        grid-template-columns: 1fr;
+        max-width: 400px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+}
+
+/* Pricing Card */
+.pricing-card-new {
+    background: white;
+    border-radius: 20px;
+    padding: 32px 28px;
+    position: relative;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    border: 2px solid #f1f5f9;
+}
+
+[data-theme="dark"] .pricing-card-new {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.pricing-card-new:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+}
+
+.pricing-card-new.popular {
+    border-color: #6366f1;
+    box-shadow: 0 8px 30px rgba(99, 102, 241, 0.2);
+    transform: scale(1.02);
+}
+
+.pricing-card-new.popular:hover {
+    transform: scale(1.02) translateY(-8px);
+}
+
+/* Popular Ribbon */
+.popular-ribbon {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    padding: 8px 24px;
+    border-radius: 50px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+
+/* Plan Header */
+.plan-header-new {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.plan-name-new {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 8px 0;
+}
+
+[data-theme="dark"] .plan-name-new {
+    color: #f8fafc;
+}
+
+.plan-desc-new {
+    font-size: 14px;
+    color: #64748b;
+    margin: 0;
+}
+
+/* Plan Price */
+.plan-price-new {
+    text-align: center;
+    margin-bottom: 20px;
+    padding: 20px 0;
+    border-top: 1px solid #f1f5f9;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+[data-theme="dark"] .plan-price-new {
+    border-color: #334155;
+}
+
+.price-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2px;
+}
+
+.currency {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-top: 8px;
+}
+
+[data-theme="dark"] .currency {
+    color: #f8fafc;
+}
+
+.amount {
+    font-size: 56px;
+    font-weight: 800;
+    color: #1e293b;
+    line-height: 1;
+}
+
+[data-theme="dark"] .amount {
+    color: #f8fafc;
+}
+
+.period {
+    font-size: 16px;
+    color: #64748b;
+    margin-top: 12px;
+    align-self: flex-end;
+}
+
+.original-price {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.strike {
+    text-decoration: line-through;
+    color: #94a3b8;
+    font-size: 16px;
+}
+
+.save-badge {
+    background: #dcfce7;
+    color: #16a34a;
+    padding: 4px 10px;
+    border-radius: 50px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+[data-theme="dark"] .save-badge {
+    background: rgba(22, 163, 74, 0.2);
+}
+
+.custom-pricing {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.price-label {
+    font-size: 36px;
+    font-weight: 800;
+    color: #1e293b;
+}
+
+[data-theme="dark"] .price-label {
+    color: #f8fafc;
+}
+
+/* Plan Limit */
+.plan-limit-new {
+    text-align: center;
+    background: #f8fafc;
+    padding: 12px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #6366f1;
+    margin-bottom: 20px;
+}
+
+[data-theme="dark"] .plan-limit-new {
+    background: #334155;
+    color: #a5b4fc;
+}
+
+/* Plan Features */
+.plan-features-new {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 24px 0;
+}
+
+.plan-features-new li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+    font-size: 14px;
+    color: #475569;
+    border-bottom: 1px solid #f8fafc;
+}
+
+[data-theme="dark"] .plan-features-new li {
+    color: #cbd5e1;
+    border-color: #334155;
+}
+
+.plan-features-new li:last-child {
+    border-bottom: none;
+}
+
+.feature-check {
+    color: #10b981;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+/* CTA Button */
+.plan-cta-new {
+    width: 100%;
+    padding: 16px;
+    background: #f1f5f9;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+[data-theme="dark"] .plan-cta-new {
+    background: #334155;
+    color: #cbd5e1;
+}
+
+.plan-cta-new:hover {
+    background: #e2e8f0;
+    transform: translateY(-2px);
+}
+
+[data-theme="dark"] .plan-cta-new:hover {
+    background: #475569;
+}
+
+.plan-cta-new.cta-popular {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+}
+
+.plan-cta-new.cta-popular:hover {
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+    transform: translateY(-2px);
+}
+
+.plan-guarantee {
+    text-align: center;
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 12px;
+}
+
+/* Comparison Section */
+.comparison-section-new {
+    padding: 60px 20px;
+    background: white;
+    margin-top: 40px;
+}
+
+[data-theme="dark"] .comparison-section-new {
+    background: #1e293b;
+}
+
+.comparison-title {
+    text-align: center;
+    font-size: 32px;
+    font-weight: 800;
+    color: #1e293b;
+    margin: 0 0 8px 0;
+}
+
+[data-theme="dark"] .comparison-title {
+    color: #f8fafc;
+}
+
+.comparison-subtitle {
+    text-align: center;
+    font-size: 16px;
+    color: #64748b;
+    margin: 0 0 40px 0;
+}
+
+.comparison-table-wrapper {
+    overflow-x: auto;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.comparison-table-new {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    min-width: 600px;
+}
+
+[data-theme="dark"] .comparison-table-new {
+    background: #1e293b;
+}
+
+.comparison-table-new th,
+.comparison-table-new td {
+    padding: 16px 20px;
+    text-align: center;
+}
+
+.comparison-table-new th {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.comparison-table-new th.feature-col {
+    background: #f8fafc;
+    color: #1e293b;
+    text-align: left;
+}
+
+[data-theme="dark"] .comparison-table-new th.feature-col {
+    background: #334155;
+    color: #f8fafc;
+}
+
+.comparison-table-new th.popular-col {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+}
+
+.table-price {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0.8;
+    margin-top: 4px;
+}
+
+.comparison-table-new td {
+    font-size: 14px;
+    color: #475569;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+[data-theme="dark"] .comparison-table-new td {
+    color: #cbd5e1;
+    border-color: #334155;
+}
+
+.comparison-table-new td.feature-col {
+    text-align: left;
+    font-weight: 500;
+    color: #1e293b;
+}
+
+[data-theme="dark"] .comparison-table-new td.feature-col {
+    color: #f8fafc;
+}
+
+.comparison-table-new .popular-col {
+    background: rgba(99, 102, 241, 0.05);
+}
+
+[data-theme="dark"] .comparison-table-new .popular-col {
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.comparison-table-new .even-row {
+    background: #fafbfc;
+}
+
+[data-theme="dark"] .comparison-table-new .even-row {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.check-yes {
+    color: #10b981;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.check-no {
+    color: #cbd5e1;
+    font-size: 18px;
+}
+
+.feature-value {
+    font-weight: 600;
+    color: #6366f1;
+}
+
+[data-theme="dark"] .feature-value {
+    color: #a5b4fc;
+}
+
+/* FAQ Section */
+.faq-section-new {
+    padding: 60px 20px;
+    background: #f8fafc;
+}
+
+[data-theme="dark"] .faq-section-new {
+    background: #0f172a;
+}
+
+.faq-title {
+    text-align: center;
+    font-size: 32px;
+    font-weight: 800;
+    color: #1e293b;
+    margin: 0 0 40px 0;
+}
+
+[data-theme="dark"] .faq-title {
+    color: #f8fafc;
+}
+
+.faq-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+@media (max-width: 900px) {
+    .faq-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.faq-card {
+    background: white;
+    padding: 24px;
+    border-radius: 16px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .faq-card {
+    background: #1e293b;
+}
+
+.faq-card h4 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 10px 0;
+}
+
+[data-theme="dark"] .faq-card h4 {
+    color: #f8fafc;
+}
+
+.faq-card p {
+    font-size: 14px;
+    color: #64748b;
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* CTA Section */
+.pricing-cta-section {
+    text-align: center;
+    padding: 80px 20px;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+    color: white;
+}
+
+.pricing-cta-section h2 {
+    font-size: 36px;
+    font-weight: 800;
+    margin: 0 0 12px 0;
+}
+
+.pricing-cta-section p {
+    font-size: 18px;
+    opacity: 0.9;
+    margin: 0 0 32px 0;
+}
+
+.cta-button-big {
+    background: white;
+    color: #6366f1;
+    border: none;
+    padding: 18px 40px;
+    font-size: 17px;
+    font-weight: 700;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    font-family: inherit;
+}
+
+.cta-button-big:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .pricing-hero-title {
+        font-size: 32px;
+    }
+    
+    .pricing-hero-subtitle {
+        font-size: 16px;
+    }
+    
+    .trust-badges {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .comparison-title,
+    .faq-title {
+        font-size: 26px;
+    }
+    
+    .pricing-cta-section h2 {
+        font-size: 28px;
+    }
+    
+    .cta-button-big {
+        padding: 16px 32px;
+        font-size: 16px;
+    }
+}

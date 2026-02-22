@@ -1,0 +1,21 @@
+{
+    "name": "Clinvoice AI",
+    "short_name": "Clinvoice",
+    "description": "AI-Powered Clinical Documentation Platform",
+    "start_url": "/desktop/",
+    "display": "standalone",
+    "background_color": "#0a0f1e",
+    "theme_color": "#7c3aed",
+    "icons": [
+        {
+            "src": "/desktop/clinivoice-logo.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/desktop/clinivoice-logo.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
