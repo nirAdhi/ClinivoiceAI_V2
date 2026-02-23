@@ -80,8 +80,12 @@ async function checkSubscription(req, res, next) {
             return res.status(401).json({ error: 'Authentication required' });
         }
 
+        console.log('checkSubscription - user:', req.user);
+        console.log('checkSubscription - role:', req.user.role);
+
         // Admins bypass subscription check
         if (req.user.role === 'admin') {
+            console.log('Admin user detected, bypassing subscription check');
             return next();
         }
 
