@@ -408,12 +408,14 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
         
         if (data.type === 'mobile_connected') {
           setIsMobileConnected(true)
+          setInputSource('mobile')
           pushToast('Mobile device connected! Start dictation from your phone.', 'success')
         }
         else if (data.type === 'session_status') {
           // Check if mobile is already connected
           if (data.mobileConnected) {
             setIsMobileConnected(true)
+            setInputSource('mobile')
           }
         }
         else if (data.type === 'session_info') {
@@ -421,10 +423,13 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
           console.log('Session info:', data.session)
           if (data.session && data.session.status === 'active') {
             setIsMobileConnected(true)
+            setInputSource('mobile')
           }
         }
         else if (data.type === 'mobile_disconnected') {
           setIsMobileConnected(false)
+          setIsMobileRecording(false)
+          setInputSource('computer')
           setIsRecording(false)
           pushToast('Mobile device disconnected', 'error')
         }
