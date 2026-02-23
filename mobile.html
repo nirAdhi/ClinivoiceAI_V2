@@ -285,13 +285,13 @@
             };
             
             recognition.onend = () => {
-                // Only restart if still recording - wait a bit to reduce beeping
+                // Only restart if still recording - wait longer to reduce beeping
                 if (isRecording && recognition) {
                     setTimeout(() => {
                         if (isRecording && recognition) {
                             try { recognition.start(); } catch(e) {}
                         }
-                    }, 300);
+                    }, 1000); // 1 second delay to reduce beeping
                 }
             };
             

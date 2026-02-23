@@ -49,6 +49,7 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
   const [inputSource, setInputSource] = useState('computer') // 'computer' or 'mobile'
   const [mobileSessionCode, setMobileSessionCode] = useState(null)
   const [isMobileConnected, setIsMobileConnected] = useState(false)
+  const [isMobileRecording, setIsMobileRecording] = useState(false)
   const [showMobileCodeModal, setShowMobileCodeModal] = useState(false)
   const mobileWsRef = useRef(null)
 
@@ -436,17 +437,17 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
           }
         }
         else if (data.type === 'mobile_recording_started') {
-          setIsRecording(true)
+          setIsMobileRecording(true)
           // Clear previous transcript when starting new recording
           setTranscription('')
           finalTranscriptRef.current = ''
           pushToast('Mobile is recording...', 'success')
         }
         else if (data.type === 'mobile_recording_stopped') {
-          setIsRecording(false)
+          setIsMobileRecording(false)
         }
         else if (data.type === 'mobile_stopped') {
-          setIsRecording(false)
+          setIsMobileRecording(false)
           setIsMobileConnected(false)
         }
       }
@@ -1220,11 +1221,23 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                   <div className="mic-row">
                     {inputSource === 'mobile' && isMobileConnected ? (
                       <>
-                        <button className={`mic-btn ${isRecording ? 'recording' : ''}`} disabled style={{ opacity: 0.5 }}>
+                        <button className={`mic-btn ${isMobileRecording ? 'recording' : ''}`} disabled style={{ opacity: 0.5 }}>
                           📱
                         </button>
+                        {isMobileRecording && (
+                          <div className="audio-level">
+                            <div className="audio-bar" style={{ '--h': '8px', animationDelay: '0s' }}></div>
+                            <div className="audio-bar" style={{ '--h': '18px', animationDelay: '0.1s' }}></div>
+                            <div className="audio-bar" style={{ '--h': '12px', animationDelay: '0.2s' }}></div>
+                            <div className="audio-bar" style={{ '--h': '22px', animationDelay: '0.3s' }}></div>
+                            <div className="audio-bar" style={{ '--h': '10px', animationDelay: '0.4s' }}></div>
+                            <div className="audio-bar" style={{ '--h': '16px', animationDelay: '0.5s' }}></div>
+                            <div className="audio-bar" style={{ '--h': '20px', animationDelay: '0.6s' }}></div>
+                            <div className="audio-bar" style={{ '--h': '8px', animationDelay: '0.7s' }}></div>
+                          </div>
+                        )}
                         <div className="mic-info">
-                          <div className="mic-label" style={{ color: '#10b981' }}>🟢 Mobile Connected - Recording Active</div>
+                          <div className="mic-label" style={{ color: '#10b981' }}>🟢 Mobile Connected {isMobileRecording ? '- Recording Active' : ''}</div>
                           <div className="mic-sub">Use your phone to dictate. Speak into your phone microphone.</div>
                         </div>
                         {isRecording && <div className="rec-timer">{formatTime(recordingTime)}</div>}
