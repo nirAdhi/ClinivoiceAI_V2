@@ -46,6 +46,19 @@
         
         .error { background: #7f1d1d; color: #fca5a5; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
         .connected { background: #065f46; color: #6ee7b7; padding: 12px; border-radius: 8px; margin-bottom: 20px; }
+        
+        /* Wave Animation */
+        .wave-bar { 
+            transition: height 0.1s ease; 
+            animation-play-state: paused;
+        }
+        @keyframes wave {
+            0%, 100% { height: 10px; }
+            50% { height: 45px; }
+        }
+        #audioWave.recording .wave-bar { 
+            animation-play-state: running; 
+        }
     </style>
 </head>
 <body>
@@ -62,6 +75,21 @@
         </div>
         
         <button class="mic-btn" id="micBtn" disabled>🎤</button>
+        
+        <!-- Audio Wave Visualization -->
+        <div id="audioWave" style="display: none; height: 60px; margin: 20px 0; align-items: center; justify-content: center; gap: 4px;">
+            <div class="wave-bar" style="width: 6px; height: 20px; background: #10b981; border-radius: 3px; animation: wave 0.5s ease-in-out infinite;"></div>
+            <div class="wave-bar" style="width: 6px; height: 30px; background: #10b981; border-radius: 3px; animation: wave 0.4s ease-in-out infinite;"></div>
+            <div class="wave-bar" style="width: 6px; height: 40px; background: #10b981; border-radius: 3px; animation: wave 0.6s ease-in-out infinite;"></div>
+            <div class="wave-bar" style="width: 6px; height: 25px; background: #10b981; border-radius: 3px; animation: wave 0.3s ease-in-out infinite;"></div>
+            <div class="wave-bar" style="width: 6px; height: 35px; background: #10b981; border-radius: 3px; animation: wave 0.5s ease-in-out infinite;"></div>
+            <div class="wave-bar" style="width: 6px; height: 20px; background: #10b981; border-radius: 3px; animation: wave 0.4s ease-in-out infinite;"></div>
+            <div class="wave-bar" style="width: 6px; height: 30px; background: #10b981; border-radius: 3px; animation: wave 0.6s ease-in-out infinite;"></div>
+            <div class="wave-bar" style="width: 6px; height: 40px; background: #10b981; border-radius: 3px; animation: wave 0.3s ease-in-out infinite;"></div>
+            <div class="wave-bar" style="width: 6px; height: 25px; background: #10b981; border-radius: 3px; animation: wave 0.5s ease-in-out infinite;"></div>
+            <div class="wave-bar" style="width: 6px; height: 35px; background: #10b981; border-radius: 3px; animation: wave 0.4s ease-in-out infinite;"></div>
+        </div>
+        
         <div class="timer" id="timer">00:00</div>
         
         <div class="info" id="infoBox" style="display: none;">
@@ -241,20 +269,29 @@
                 console.error('Speech recognition error:', event.error);
                 if (event.error === 'not-allowed') {
                     showError('Microphone access denied');
+                } else if (event.error === 'no-speech') {
+                    // Ignore no-speech, just restart quietly
+                    if (isRecording && recognition) {
+                        try { recognition.start(); } catch(e) {}
+                    }
                 } else if (event.error !== 'aborted' && isRecording) {
-                    // Restart on error (except manual stop)
+                    // Restart on error after delay
                     setTimeout(() => {
                         if (isRecording && recognition) {
                             try { recognition.start(); } catch(e) {}
                         }
-                    }, 100);
+                    }, 500);
                 }
             };
             
             recognition.onend = () => {
-                // Restart if still recording
+                // Only restart if still recording - wait a bit to reduce beeping
                 if (isRecording && recognition) {
-                    try { recognition.start(); } catch(e) {}
+                    setTimeout(() => {
+                        if (isRecording && recognition) {
+                            try { recognition.start(); } catch(e) {}
+                        }
+                    }, 300);
                 }
             };
             
@@ -273,6 +310,9 @@
             micBtn.classList.add('recording');
             micBtn.textContent = '⏹️';
             infoBox.style.display = 'block';
+            const audioWave = document.getElementById('audioWave');
+            audioWave.style.display = 'flex';
+            audioWave.classList.add('recording');
             statusEl.textContent = 'Recording & transcribing...';
             
             // Start timer
@@ -295,6 +335,9 @@
             micBtn.classList.remove('recording');
             micBtn.textContent = '🎤';
             infoBox.style.display = 'none';
+            const audioWave = document.getElementById('audioWave');
+            audioWave.style.display = 'none';
+            audioWave.classList.remove('recording');
             document.getElementById('transcriptPreview').style.display = 'none';
             statusEl.textContent = 'Recording stopped';
             finalTranscript = '';
