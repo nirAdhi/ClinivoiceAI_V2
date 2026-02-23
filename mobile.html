@@ -239,8 +239,8 @@
             }
             
             recognition = new SpeechRecognition();
-            recognition.continuous = false; // Don't auto-restart
-            recognition.interimResults = false; // Only get final results to avoid duplicates
+            recognition.continuous = true; // Keep listening continuously - prevents beeping
+            recognition.interimResults = false; // Only get final results
             recognition.lang = 'en-US';
             
             recognition.onresult = (event) => {
@@ -285,13 +285,9 @@
             };
             
             recognition.onend = () => {
-                // Only restart if still recording - wait longer to reduce beeping
+                // In continuous mode, just restart immediately if still recording
                 if (isRecording && recognition) {
-                    setTimeout(() => {
-                        if (isRecording && recognition) {
-                            try { recognition.start(); } catch(e) {}
-                        }
-                    }, 1000); // 1 second delay to reduce beeping
+                    try { recognition.start(); } catch(e) {}
                 }
             };
             
