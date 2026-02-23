@@ -80,6 +80,11 @@ async function checkSubscription(req, res, next) {
             return res.status(401).json({ error: 'Authentication required' });
         }
 
+        // Admins bypass subscription check
+        if (req.user.role === 'admin') {
+            return next();
+        }
+
         const db = require('../database');
 
         // Check if user can transcribe (handles whitelist + subscription + usage)
