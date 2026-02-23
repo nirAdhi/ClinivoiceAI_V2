@@ -409,6 +409,7 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
         if (data.type === 'mobile_connected') {
           setIsMobileConnected(true)
           setInputSource('mobile')
+          setShowMobileCodeModal(false)
           pushToast('Mobile device connected! Start dictation from your phone.', 'success')
         }
         else if (data.type === 'session_status') {
@@ -416,6 +417,7 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
           if (data.mobileConnected) {
             setIsMobileConnected(true)
             setInputSource('mobile')
+            setShowMobileCodeModal(false)
           }
         }
         else if (data.type === 'session_info') {
@@ -424,6 +426,7 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
           if (data.session && data.session.status === 'active') {
             setIsMobileConnected(true)
             setInputSource('mobile')
+            setShowMobileCodeModal(false)
           }
         }
         else if (data.type === 'mobile_disconnected') {
