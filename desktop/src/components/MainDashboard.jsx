@@ -1354,33 +1354,26 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
 
                   {aiNote ? (
                     <div className="note-preview">
-                      {aiNote.patient && (
-                        <div className="soap-section">
-                          <strong>Patient:</strong> {aiNote.patient}
-                        </div>
-                      )}
-                      {aiNote.date && (
-                        <div className="soap-section">
-                          <strong>Date:</strong> {aiNote.date}
-                        </div>
-                      )}
-                      {aiNote.dentist && (
-                        <div className="soap-section">
-                          <strong>Dentist:</strong> {aiNote.dentist}
-                        </div>
-                      )}
-                      {aiNote.visitType && (
-                        <div className="soap-section">
-                          <strong>Visit Type:</strong> {aiNote.visitType}
-                        </div>
-                      )}
+                      <div className="note-header-line">
+                        <strong>Patient:</strong> {aiNote.patient}
+                      </div>
+                      <div className="note-header-line">
+                        <strong>Date:</strong> {aiNote.date}
+                      </div>
+                      <div className="note-header-line">
+                        <strong>Dentist:</strong> {aiNote.dentist}
+                      </div>
+<div className="                      note-header-line">
+                        <strong>Visit Type:</strong> {aiNote.visitType}
+                      </div>
+                      
                       {aiNote.chiefComplaint && (
                         <div className="soap-section">
                           <div className="section-header">
                             <span className="section-emoji">🦷</span>
                             <strong>Chief Complaint</strong>
+                            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.chiefComplaint)}>Copy me</button>
                           </div>
-                          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.chiefComplaint)}>Copy me</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.chiefComplaint}</p>
                         </div>
                       )}
@@ -1389,8 +1382,8 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                           <div className="section-header">
                             <span className="section-emoji">📋</span>
                             <strong>History of Present Illness</strong>
+                            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.historyOfPresentIllness)}>Copy me</button>
                           </div>
-                          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.historyOfPresentIllness)}>Copy me</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.historyOfPresentIllness}</p>
                         </div>
                       )}
@@ -1399,8 +1392,8 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                           <div className="section-header">
                             <span className="section-emoji">⚕️</span>
                             <strong>Medical History</strong>
+                            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.medicalHistory)}>Copy me</button>
                           </div>
-                          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.medicalHistory)}>Copy me</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.medicalHistory}</p>
                         </div>
                       )}
@@ -1409,8 +1402,8 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                           <div className="section-header">
                             <span className="section-emoji">🪥</span>
                             <strong>Dental History</strong>
+                            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.dentalHistory)}>Copy me</button>
                           </div>
-                          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.dentalHistory)}>Copy me</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.dentalHistory}</p>
                         </div>
                       )}
@@ -1419,8 +1412,8 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                           <div className="section-header">
                             <span className="section-emoji">👁️</span>
                             <strong>Intraoral Examination</strong>
+                            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.intraOralExamination)}>Copy me</button>
                           </div>
-                          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.intraOralExamination)}>Copy me</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.intraOralExamination}</p>
                         </div>
                       )}
@@ -1429,8 +1422,8 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                           <div className="section-header">
                             <span className="section-emoji">🔬</span>
                             <strong>Diagnostic Procedures</strong>
+                            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.diagnosticProcedures)}>Copy me</button>
                           </div>
-                          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.diagnosticProcedures)}>Copy me</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.diagnosticProcedures}</p>
                         </div>
                       )}
@@ -1439,8 +1432,8 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                           <div className="section-header">
                             <span className="section-emoji">📊</span>
                             <strong>Assessment</strong>
+                            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.assessment)}>Copy me</button>
                           </div>
-                          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.assessment)}>Copy me</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.assessment}</p>
                         </div>
                       )}
@@ -1449,8 +1442,8 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                           <div className="section-header">
                             <span className="section-emoji">📚</span>
                             <strong>Education & Recommendations</strong>
+                            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.educationRecommendations)}>Copy me</button>
                           </div>
-                          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.educationRecommendations)}>Copy me</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.educationRecommendations}</p>
                         </div>
                       )}
@@ -1459,8 +1452,8 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                           <div className="section-header">
                             <span className="section-emoji">💬</span>
                             <strong>Patient Response</strong>
+                            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.patientResponse)}>Copy me</button>
                           </div>
-                          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.patientResponse)}>Copy me</button>
                           <p>{aiNote.patientResponse}</p>
                         </div>
                       )}
@@ -1469,8 +1462,8 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                           <div className="section-header">
                             <span className="section-emoji">📋</span>
                             <strong>Plan</strong>
+                            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.plan)}>Copy me</button>
                           </div>
-                          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.plan)}>Copy me</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.plan}</p>
                         </div>
                       )}
@@ -1484,11 +1477,6 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                         <div className="soap-section">
                           <strong>Objective</strong>
                           <p>{aiNote.objective}</p>
-                        </div>
-                      )}
-                      {aiNote._error && (
-                        <div className="soap-section" style={{ opacity: 0.6, fontSize: '0.85em' }}>
-                          <small>⚠️ Note generated with template (AI parsing failed)</small>
                         </div>
                       )}
                     </div>

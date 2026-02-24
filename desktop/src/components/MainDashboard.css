@@ -476,6 +476,11 @@
 .section-emoji {
     font-size: 16px;
 }
+.note-header-line {
+    font-size: 13px;
+    color: var(--text);
+    margin-bottom: 4px;
+}
 .copy-btn {
     float: right;
     background: var(--brand-purple);

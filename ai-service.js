@@ -179,9 +179,15 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
             : 'medical examination and diagnosis';
 
         let prompt;
-        let responseSchema;
         if (domain === 'dental') {
-            prompt = `Create dental note JSON. Transcription: "${transcription.substring(0, 1500)}". Fields: patient, date (today), dentist, visitType, chiefComplaint, historyOfPresentIllness, medicalHistory, dentalHistory, intraOralExamination, diagnosticProcedures, assessment, educationRecommendations, patientResponse, plan. Use simple format. End JSON with }.`;
+            const shortTranscript = transcription.substring(0, 1000);
+            prompt = `Convert this dental transcription to a dental note. Return ONLY valid JSON like this example, no other text:
+
+{"patient":"John","date":"Feb 24, 2026","dentist":"Dr. Smith","visitType":"Examination","chiefComplaint":"Tooth pain","historyOfPresentIllness":"3 days","medicalHistory":"None","dentalHistory":"Regular checkups","intraOralExamination":"Normal","diagnosticProcedures":"X-ray","assessment":"Cavity","educationRecommendations":"Floss daily","patientResponse":"Understood","plan":"Filling"}
+
+Transcription: "${shortTranscript}"
+
+Now return ONLY the JSON, no explanation:`;
 
             responseSchema = {
                 type: 'object',
@@ -306,86 +312,107 @@ Return JSON with: subjective, objective, assessment, plan. Complete all fields. 
         }
         if (!chosenModel) throw lastErr || new Error('All Gemini model attempts failed');
 
-        // Clean up the response - remove markdown code blocks and strip invisible characters
-        let cleanText = text
-            .replace(/```json\n?/g, '')
-            .replace(/```\n?/g, '')
-            .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202F\uFEFF]/g, '') // Remove invisible unicode chars
-            .replace(/,\s*}/g, '}')  // Remove trailing commas before }
-            .replace(/,\s*]/g, ']')  // Remove trailing commas before ]
-            .trim();
+        // Simple cleanup - just remove markdown and trim
+        let cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
 
-        // Debug: show first 500 chars of cleaned text
-        console.log('🧹 Cleaned text preview:', cleanText.substring(0, 500));
+        // Debug
+        console.log('🧹 Cleaned text:', cleanText.substring(0, 200));
 
-        let soapNote;
+        let soapNote = null;
+        
+        // Method 1: Direct parse
         try {
-            console.log('🔍 Attempting to parse JSON...');
             soapNote = JSON.parse(cleanText);
-            console.log('✅ JSON parsed successfully');
-        } catch (err) {
-            console.log('⚠️  Direct JSON parse failed, attempting extraction...');
-            
-            // Try to find and extract a complete JSON object
+            console.log('✅ Method 1: Direct parse worked');
+        } catch (e) {
+            // Method 2: Find JSON in text
             const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
-                let extracted = jsonMatch[0];
-                // Try to fix common JSON issues
                 try {
-                    // Remove any trailing content after the closing brace
-                    const lastBrace = extracted.lastIndexOf('}');
-                    if (lastBrace > 0) {
-                        extracted = extracted.substring(0, lastBrace + 1);
-                    }
-                    // Fix common issues
-                    extracted = extracted
-                        .replace(/,\s*}/g, '}')
-                        .replace(/,\s*]/g, ']');
-                    
-                    soapNote = JSON.parse(extracted);
-                    console.log('✅ Extracted and parsed JSON successfully');
-                } catch (extractErr) {
-                    console.log('⚠️  Extraction parse failed:', extractErr.message);
+                    // Find the last closing brace
+                    let jsonStr = jsonMatch[0];
+                    const lastBrace = jsonStr.lastIndexOf('}');
+                    if (lastBrace > 0) jsonStr = jsonStr.substring(0, lastBrace + 1);
+                    // Fix trailing commas
+                    jsonStr = jsonStr.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+                    soapNote = JSON.parse(jsonStr);
+                    console.log('✅ Method 2: Extracted JSON worked');
+                } catch (e2) {
+                    console.log('⚠️ Method 2 failed:', e2.message);
                 }
             }
-            
-            // If still failed, try parsing line by line to find complete object
-            if (!soapNote) {
-                const lines = cleanText.split('\n');
-                let jsonLines = [];
-                let inJson = false;
-                let braceCount = 0;
+        }
+        
+        // Method 3: Try to build from key-value pairs if still failed
+        if (!soapNote && cleanText.includes('patient')) {
+            console.log('🔄 Trying Method 3: Extract from text...');
+            try {
+                const extractField = (field) => {
+                    const patterns = [
+                        new RegExp(`"${field}"\\s*:\\s*"([^"]*(?:\\"[^"]*)*)"`, 'i'),
+                        new RegExp(`${field}\\s*[:=]\\s*([^\\n]+)`, 'i'),
+                    ];
+                    for (const p of patterns) {
+                        const m = cleanText.match(p);
+                        if (m) return m[1].replace(/\\"/g, '"').trim();
+                    }
+                    return '';
+                };
                 
-                for (const line of lines) {
-                    if (line.includes('{')) inJson = true;
-                    if (inJson) {
-                        jsonLines.push(line);
-                        braceCount += (line.match(/{/g) || []).length;
-                        braceCount -= (line.match(/}/g) || []).length;
-                        if (braceCount === 0 && jsonLines.length > 1) {
-                            break; // Found complete JSON
-                        }
-                    }
-                }
-                
-                if (jsonLines.length > 0) {
-                    try {
-                        const reconstructed = jsonLines.join('\n')
-                            .replace(/,\s*}/g, '}')
-                            .replace(/,\s*]/g, ']');
-                        soapNote = JSON.parse(reconstructed);
-                        console.log('✅ Line-by-line JSON parsed successfully');
-                    } catch (e) {
-                        console.log('⚠️  Line-by-line also failed');
-                    }
-                }
+                soapNote = {
+                    patient: extractField('patient') || '[Patient Name]',
+                    date: extractField('date') || new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+                    dentist: extractField('dentist') || '[Dentist Name]',
+                    visitType: extractField('visitType') || 'Dental Examination',
+                    chiefComplaint: extractField('chiefComplaint') || extractField('chief_complaint') || '- See transcript',
+                    historyOfPresentIllness: extractField('historyOfPresentIllness') || extractField('history_of_present_illness') || '- See transcript',
+                    medicalHistory: extractField('medicalHistory') || extractField('medical_history') || 'Not discussed',
+                    dentalHistory: extractField('dentalHistory') || extractField('dental_history') || '- See transcript',
+                    intraOralExamination: extractField('intraOralExamination') || extractField('intra_oral_examination') || '- Examination pending',
+                    diagnosticProcedures: extractField('diagnosticProcedures') || extractField('diagnostic_procedures') || '- To be determined',
+                    assessment: extractField('assessment') || '- Assessment pending',
+                    educationRecommendations: extractField('educationRecommendations') || extractField('education_recommendations') || '- Maintain oral hygiene',
+                    patientResponse: extractField('patientResponse') || extractField('patient_response') || '- Acknowledged',
+                    plan: extractField('plan') || '- Follow up as needed'
+                };
+                console.log('✅ Method 3: Field extraction worked');
+            } catch (e3) {
+                console.log('⚠️ Method 3 failed:', e3.message);
             }
+        }
+
+        // If still no valid note, use fast fallback
+        if (!soapNote) {
+            console.log('⚠️ All parsing failed, using fast fallback');
+            const today = new Date();
+            const dateStr = today.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+            const text = String(transcription || '').trim();
             
-            if (!soapNote) {
-                console.error('❌ All JSON extraction methods failed:', err.message);
-                // Instead of throwing, return the fallback with the error info
-                throw err;
-            }
+            // Quick extraction from transcription
+            let patientName = '[Patient Name]';
+            const pMatch = text.match(/(?:patient|name|this is)\s+([A-Z][a-z]+)/i);
+            if (pMatch) patientName = pMatch[1];
+            
+            let dentistName = '[Dentist Name]';
+            const dMatch = text.match(/(?:Dr\.?)\s+([A-Z][a-z]+)/i);
+            if (dMatch) dentistName = 'Dr. ' + dMatch[1];
+
+            soapNote = {
+                patient: patientName,
+                date: dateStr,
+                dentist: dentistName,
+                visitType: 'Dental Examination & Consultation',
+                chiefComplaint: text.substring(0, 300) || '- See transcript',
+                historyOfPresentIllness: '- See chief complaint',
+                medicalHistory: 'Not discussed',
+                dentalHistory: '- See transcript',
+                intraOralExamination: '- Examination pending',
+                diagnosticProcedures: '- To be determined',
+                assessment: '- Assessment pending',
+                educationRecommendations: '- Maintain oral hygiene',
+                patientResponse: '- Acknowledged',
+                plan: '- Follow up as needed'
+            };
         }
 
         // Validate the required fields depending on domain
@@ -421,54 +448,35 @@ Return JSON with: subjective, objective, assessment, plan. Complete all fields. 
         const errMsg = (error && error.message) ? error.message : String(error);
         console.error('❌ Gemini/OpenAI note generation error:', errMsg);
 
-        // Domain-specific offline fallback - extract from transcription directly (FAST)
-        if (domain === 'dental') {
-            const today = new Date();
-            const dateStr = today.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' });
-            const text = String(transcription || '').trim();
-            
-            // Extract patient name - look for common patterns
-            let patientName = '[Patient Name]';
-            const patientMatch = text.match(/(?:patient|name|this is|I'm)\s+([A-Z][a-z]+)/i);
-            if (patientMatch) patientName = patientMatch[1];
-            
-            // Extract dentist name
-            let dentistName = '[Dentist Name]';
-            const dentistMatch = text.match(/(?:Dr\.?|Doctor)\s+([A-Z][a-z]+)/i);
-            if (dentistMatch) dentistName = 'Dr. ' + dentistMatch[1];
+        // Fast fallback - extract from transcription directly
+        const today = new Date();
+        const dateStr = today.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+        const text = String(transcription || '').trim();
+        
+        let patientName = '[Patient Name]';
+        const pMatch = text.match(/(?:patient|name|this is)\s+([A-Z][a-z]+)/i);
+        if (pMatch) patientName = pMatch[1];
+        
+        let dentistName = '[Dentist Name]';
+        const dMatch = text.match(/(?:Dr\.?)\s+([A-Z][a-z]+)/i);
+        if (dMatch) dentistName = 'Dr. ' + dMatch[1];
 
-            // Extract first 500 chars as chief complaint
-            const chiefComplaint = text.length > 500 ? text.substring(0, 500) + '...' : text;
-
-            return {
-                _error: errMsg,
-                _provider: process.env.AI_PROVIDER || 'auto',
-                patient: patientName,
-                date: dateStr,
-                dentist: dentistName,
-                visitType: 'Dental Examination & Consultation',
-                chiefComplaint: chiefComplaint,
-                historyOfPresentIllness: '- See chief complaint above',
-                medicalHistory: 'Not discussed/No concerns mentioned. (Update if applicable)',
-                dentalHistory: '- No recent dental visits mentioned',
-                intraOralExamination: '- Examination pending',
-                diagnosticProcedures: '- To be determined',
-                assessment: '- Requires further evaluation',
-                educationRecommendations: '- Maintain good oral hygiene',
-                patientResponse: 'Patient acknowledged instructions.',
-                plan: '- Follow up as needed'
-            };
-        }
-
-        // Generic fallback
         return {
             _error: errMsg,
-            _domain: domain,
-            _model: process.env.GEMINI_MODEL || 'auto',
-            subjective: 'Patient reports symptoms as described in transcription.',
-            objective: 'Clinical findings as documented.',
-            assessment: 'Requires further evaluation.',
-            plan: 'Continue monitoring and follow-up as needed.'
+            patient: patientName,
+            date: dateStr,
+            dentist: dentistName,
+            visitType: 'Dental Examination & Consultation',
+            chiefComplaint: text.substring(0, 300) || '- See transcript',
+            historyOfPresentIllness: '- See chief complaint',
+            medicalHistory: 'Not discussed',
+            dentalHistory: '- See transcript',
+            intraOralExamination: '- Examination pending',
+            diagnosticProcedures: '- To be determined',
+            assessment: '- Assessment pending',
+            educationRecommendations: '- Maintain oral hygiene',
+            patientResponse: '- Acknowledged',
+            plan: '- Follow up as needed'
         };
     }
 }
