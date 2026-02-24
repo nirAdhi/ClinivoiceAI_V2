@@ -451,6 +451,38 @@ const createUser = async ({ user_id, password, domain, role = 'clinician', name 
             [user_id, domain || 'medical', password_hash, role, name, email]
         );
     }
+    
+    // Create trial subscription for the new user (10 free uses)
+    try {
+        // Get the user ID
+        const [[user]] = await promisePool.query('SELECT id FROM users WHERE user_id = ?', [user_id]);
+        if (user) {
+            // Get or create a default plan
+            let [[plan]] = await promisePool.query('SELECT id FROM plans LIMIT 1');
+            if (!plan) {
+                // Create a default starter plan if none exists
+                await promisePool.query(
+                    `INSERT INTO plans (name, display_name, description, price, transcription_limit) 
+                     VALUES (?, ?, ?, ?, ?)`,
+                    ['starter', 'Starter', '10 free trial', 0, 10]
+                );
+                [[plan]] = await promisePool.query('SELECT id FROM plans LIMIT 1');
+            }
+            
+            // Create trial subscription
+            const trialStartDate = new Date();
+            const trialEndDate = new Date();
+            trialEndDate.setDate(trialEndDate.getDate() + 30); // 30 days trial
+            
+            await promisePool.query(
+                `INSERT INTO subscriptions (user_id, plan_id, status, trial_uses, trial_start_date, start_date, end_date) 
+                 VALUES (?, ?, 'trial', 0, ?, ?, ?)`,
+                [user.id, plan.id, trialStartDate.toISOString().split('T')[0], trialStartDate.toISOString().split('T')[0], trialEndDate.toISOString().split('T')[0]]
+            );
+        }
+    } catch (err) {
+        console.error('Error creating trial subscription:', err);
+    }
 };
 
 const verifyUser = async ({ user_id, password }) => {
@@ -667,7 +699,38 @@ const canUserTranscribe = async (userId) => {
     }
 
     // Check subscription
-    const subscription = await getUserSubscription(userId);
+    let subscription = await getUserSubscription(userId);
+    
+    // Auto-create trial subscription if none exists
+    if (!subscription) {
+        try {
+            // Get or create a default plan
+            let [[plan]] = await promisePool.query('SELECT id FROM plans LIMIT 1');
+            if (!plan) {
+                await promisePool.query(
+                    `INSERT INTO plans (name, display_name, description, price, transcription_limit) 
+                     VALUES (?, ?, ?, ?, ?)`,
+                    ['starter', 'Starter', '10 free trial', 0, 10]
+                );
+                [[plan]] = await promisePool.query('SELECT id FROM plans LIMIT 1');
+            }
+            
+            const trialStartDate = new Date();
+            const trialEndDate = new Date();
+            trialEndDate.setDate(trialEndDate.getDate() + 30);
+            
+            await promisePool.query(
+                `INSERT INTO subscriptions (user_id, plan_id, status, trial_uses, trial_start_date, start_date, end_date) 
+                 VALUES (?, ?, 'trial', 0, ?, ?, ?)`,
+                [userId, plan.id, trialStartDate.toISOString().split('T')[0], trialStartDate.toISOString().split('T')[0], trialEndDate.toISOString().split('T')[0]]
+            );
+            
+            subscription = await getUserSubscription(userId);
+        } catch (err) {
+            console.error('Error creating trial subscription:', err);
+        }
+    }
+    
     if (!subscription) {
         return { allowed: false, reason: 'no_subscription', usage: 0, limit: 0 };
     }
