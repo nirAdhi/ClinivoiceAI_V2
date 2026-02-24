@@ -669,16 +669,16 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
           `Visit Type: ${note.visitType || ''}`
         ].join('\n'))
       }
-      if (include('chiefComplaint')) parts.push(`Chief Complaint:\n${normalize(note.chiefComplaint)}`)
-      if (include('historyOfPresentIllness')) parts.push(`History of Present Illness:\n${normalize(note.historyOfPresentIllness)}`)
-      if (include('medicalHistory')) parts.push(`Medical History:\n${normalize(note.medicalHistory)}`)
-      if (include('dentalHistory')) parts.push(`Dental History:\n${normalize(note.dentalHistory)}`)
-      if (include('intraOralExamination')) parts.push(`Intraoral Examination:\n${normalize(note.intraOralExamination)}`)
-      if (include('diagnosticProcedures')) parts.push(`Diagnostic Procedures:\n${normalize(note.diagnosticProcedures)}`)
-      if (include('assessment')) parts.push(`Assessment:\n${normalize(note.assessment)}`)
-      if (include('educationRecommendations')) parts.push(`Education & Recommendations:\n${normalize(note.educationRecommendations)}`)
-      if (include('patientResponse')) parts.push(`Patient Response:\n${normalize(note.patientResponse)}`)
-      if (include('plan')) parts.push(`Plan:\n${normalize(note.plan)}`)
+      if (include('chiefComplaint')) parts.push(`🦷 Chief Complaint:\n${normalize(note.chiefComplaint)}`)
+      if (include('historyOfPresentIllness')) parts.push(`📋 History of Present Illness:\n${normalize(note.historyOfPresentIllness)}`)
+      if (include('medicalHistory')) parts.push(`⚕️ Medical History:\n${normalize(note.medicalHistory)}`)
+      if (include('dentalHistory')) parts.push(`🪥 Dental History:\n${normalize(note.dentalHistory)}`)
+      if (include('intraOralExamination')) parts.push(`👁️ Intraoral Examination:\n${normalize(note.intraOralExamination)}`)
+      if (include('diagnosticProcedures')) parts.push(`🔬 Diagnostic Procedures:\n${normalize(note.diagnosticProcedures)}`)
+      if (include('assessment')) parts.push(`📊 Assessment:\n${normalize(note.assessment)}`)
+      if (include('educationRecommendations')) parts.push(`📚 Education & Recommendations:\n${normalize(note.educationRecommendations)}`)
+      if (include('patientResponse')) parts.push(`💬 Patient Response:\n${normalize(note.patientResponse)}`)
+      if (include('plan')) parts.push(`📋 Plan:\n${normalize(note.plan)}`)
       return parts.filter(Boolean).join('\n').trim()
     }
     const parts = []
@@ -867,8 +867,33 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
 
       {showCopyModal && (
         <div className="modal-overlay" onClick={() => setShowCopyModal(false)}>
-          <div className="modal-content copy-modal" onClick={(e) => e.stopPropagation()}>
-            <textarea className="copy-preview-text" value={copyPreview} onChange={(e) => setCopyPreview(e.target.value)} placeholder="Nothing selected yet" />
+          <div className="modal-content copy-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 600 }}>
+            <h3>📋 Select Sections to Copy</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12, maxHeight: 200, overflowY: 'auto', padding: 8, background: 'var(--surface2)', borderRadius: 8 }}>
+              {[
+                { key: 'header', label: '📝 Header', emoji: '📝' },
+                { key: 'chiefComplaint', label: '🦷 Chief Complaint', emoji: '🦷' },
+                { key: 'historyOfPresentIllness', label: '📋 History of Present Illness', emoji: '📋' },
+                { key: 'medicalHistory', label: '⚕️ Medical History', emoji: '⚕️' },
+                { key: 'dentalHistory', label: '🪥 Dental History', emoji: '🪥' },
+                { key: 'intraOralExamination', label: '👁️ Intraoral Examination', emoji: '👁️' },
+                { key: 'diagnosticProcedures', label: '🔬 Diagnostic Procedures', emoji: '🔬' },
+                { key: 'assessment', label: '📊 Assessment', emoji: '📊' },
+                { key: 'educationRecommendations', label: '📚 Education & Recommendations', emoji: '📚' },
+                { key: 'patientResponse', label: '💬 Patient Response', emoji: '💬' },
+                { key: 'plan', label: '📋 Plan', emoji: '📋' },
+              ].map(s => (
+                <label key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: 4 }}>
+                  <input type="checkbox" checked={isSelected(s.key)} onChange={() => toggleSection(s.key)} />
+                  {s.label}
+                </label>
+              ))}
+            </div>
+            <div style={{ marginBottom: 8, display: 'flex', gap: 8 }}>
+              <button onClick={selectAllSections} style={{ padding: '4px 12px', borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text)', cursor: 'pointer' }}>Select All</button>
+              <button onClick={clearAllSections} style={{ padding: '4px 12px', borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text)', cursor: 'pointer' }}>Clear All</button>
+            </div>
+            <textarea className="copy-preview-text" value={copyPreview} onChange={(e) => setCopyPreview(e.target.value)} placeholder="Select sections above and click Preview" />
             <div className="note-actions">
               <button className="pdf-btn" onClick={async () => { try { await navigator.clipboard.writeText(copyPreview); } catch { alert('Copy failed'); } }}>Copy</button>
               <button className="save-note-btn" onClick={() => { navigator.clipboard.writeText(copyPreview).then(() => setShowCopyModal(false)); }}>Copy & Close</button>
