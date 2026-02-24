@@ -692,20 +692,27 @@ const resetMonthlyUsage = async (userId) => {
  * Returns { allowed: boolean, reason: string, usage: number, limit: number }
  */
 const canUserTranscribe = async (userId) => {
+    console.log('canUserTranscribe - checking user:', userId);
+    
     // Check whitelist first (always allow)
     const whitelisted = await isWhitelisted(userId);
     if (whitelisted) {
+        console.log('canUserTranscribe - user is whitelisted');
         return { allowed: true, reason: 'whitelisted', usage: 0, limit: null };
     }
 
     // Check subscription
     let subscription = await getUserSubscription(userId);
+    console.log('canUserTranscribe - existing subscription:', subscription);
     
     // Auto-create trial subscription if none exists
     if (!subscription) {
+        console.log('canUserTranscribe - no subscription, creating trial...');
         try {
             // Get or create a default plan
             let [[plan]] = await promisePool.query('SELECT id FROM plans LIMIT 1');
+            console.log('canUserTranscribe - found plan:', plan);
+            
             if (!plan) {
                 await promisePool.query(
                     `INSERT INTO plans (name, display_name, description, price, transcription_limit) 
@@ -713,6 +720,7 @@ const canUserTranscribe = async (userId) => {
                     ['starter', 'Starter', '10 free trial', 0, 10]
                 );
                 [[plan]] = await promisePool.query('SELECT id FROM plans LIMIT 1');
+                console.log('canUserTranscribe - created plan:', plan);
             }
             
             const trialStartDate = new Date();
@@ -724,19 +732,23 @@ const canUserTranscribe = async (userId) => {
                  VALUES (?, ?, 'trial', 0, ?, ?, ?)`,
                 [userId, plan.id, trialStartDate.toISOString().split('T')[0], trialStartDate.toISOString().split('T')[0], trialEndDate.toISOString().split('T')[0]]
             );
+            console.log('canUserTranscribe - trial subscription created');
             
             subscription = await getUserSubscription(userId);
+            console.log('canUserTranscribe - new subscription:', subscription);
         } catch (err) {
-            console.error('Error creating trial subscription:', err);
+            console.error('canUserTranscribe - Error creating trial subscription:', err);
         }
     }
     
     if (!subscription) {
+        console.log('canUserTranscribe - still no subscription');
         return { allowed: false, reason: 'no_subscription', usage: 0, limit: 0 };
     }
     
     // Check if locked by admin
     if (subscription.is_locked) {
+        console.log('canUserTranscribe - user is locked');
         return { allowed: false, reason: 'locked', usage: 0, limit: 0 };
     }
 
