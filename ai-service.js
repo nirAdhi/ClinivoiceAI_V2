@@ -168,9 +168,9 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
         const modelCandidates = [];
         if (process.env.GEMINI_MODEL) modelCandidates.push(process.env.GEMINI_MODEL);
         modelCandidates.push(
-            'gemini-2.0-flash-exp',
-            'gemini-1.5-pro',
-            'gemini-1.5-flash'
+            'gemini-1.5-flash-8b',
+            'gemini-1.5-flash',
+            'gemini-1.5-pro'
         );
         let chosenModel = null;
         let text = '';
@@ -274,10 +274,20 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
             }
         }
         if (!chosenModel) {
-            console.log('🌐 Trying HTTP REST fallback to v1 endpoint...');
+            console.log('🔍 Listing available models...');
+            try {
+                const listUrl = `https://generativelanguage.googleapis.com/v1/models?key=${process.env.GEMINI_API_KEY}`;
+                const r = await fetch(listUrl);
+                const data = await r.json();
+                console.log('📋 Available models:', JSON.stringify(data).substring(0, 500));
+            } catch (e) {
+                console.log('📋 Could not list models:', e.message);
+            }
+            
+            console.log('🌐 Trying HTTP REST fallback to v1beta endpoint...');
             for (const modelName of modelCandidates) {
                 try {
-                    const url = `https://generativelanguage.googleapis.com/v1/models/${encodeURIComponent(modelName)}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+                    const url = `https://generativelanguage.googleapis.com/v1beta2/models/${modelName}:generateContent?key=${process.env.GEMINI_API_KEY}`;
                     const body = {
                         contents: [{ role: 'user', parts: [{ text: prompt }]}]
                     };
