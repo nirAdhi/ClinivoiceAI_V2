@@ -619,7 +619,7 @@ app.post('/api/generate-note', checkAuth, checkSubscription, async (req, res) =>
         }
 
         if (patientId && userId) {
-            const session = await db.createSession({ user_id: req.user.id, patient_id: patientId, domain });
+            const session = await db.createSession({ user_id: req.user.userId, patient_id: patientId, domain });
             aiNote.sessionId = session.id;
             await db.updateSession(session.id, { transcription: encryptField(transcription), ai_notes: JSON.stringify(aiNote), status: 'draft' });
             console.log(`💾 Session saved with ID: ${session.id}`);

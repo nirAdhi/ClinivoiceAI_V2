@@ -264,7 +264,25 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
                 }
                 const response = await result.response;
                 text = response.text();
-                console.log('📥 Gemini raw response:', text.substring(0, 200));
+                console.log('📥 Gemini raw response length:', text.length, 'chars');
+                console.log('📥 Gemini raw response preview:', text.substring(0, 300));
+                
+                // Check if response appears truncated (ends abruptly)
+                if (text.length > 0 && !text.trim().endsWith('}') && !text.trim().endsWith('"]')) {
+                    console.log('⚠️ Response may be truncated, attempting to complete...');
+                    // Try to get more content
+                    try {
+                        const continueResult = await model.generateContent("Continue and complete the JSON response above. Return ONLY valid JSON, nothing else.");
+                        const continuedText = continueResult.response.text();
+                        if (continuedText) {
+                            text = text + continuedText;
+                            console.log('📥 Combined response length:', text.length);
+                        }
+                    } catch (contErr) {
+                        console.log('⚠️ Could not continue response');
+                    }
+                }
+                
                 chosenModel = modelName;
                 break;
             } catch (err) {
@@ -303,7 +321,8 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
                     const parts = (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
                     text = parts.map(p => p.text || '').join('');
                     if (!text) throw new Error('Empty response text');
-                    console.log('📥 Gemini raw (HTTP):', text.substring(0, 200));
+                    console.log('📥 Gemini raw (HTTP) length:', text.length, 'chars');
+                    console.log('📥 Gemini raw (HTTP) preview:', text.substring(0, 300));
                     chosenModel = modelName;
                     break;
                 } catch (err) {
@@ -314,11 +333,17 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
         }
         if (!chosenModel) throw lastErr || new Error('All Gemini model attempts failed');
 
-        // Clean up the response - remove markdown code blocks if present
-        const cleanText = text
+        // Clean up the response - remove markdown code blocks and strip invisible characters
+        let cleanText = text
             .replace(/```json\n?/g, '')
             .replace(/```\n?/g, '')
+            .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202F\uFEFF]/g, '') // Remove invisible unicode chars
+            .replace(/,\s*}/g, '}')  // Remove trailing commas before }
+            .replace(/,\s*]/g, ']')  // Remove trailing commas before ]
             .trim();
+
+        // Debug: show first 500 chars of cleaned text
+        console.log('🧹 Cleaned text preview:', cleanText.substring(0, 500));
 
         let soapNote;
         try {
@@ -327,20 +352,65 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
             console.log('✅ JSON parsed successfully');
         } catch (err) {
             console.log('⚠️  Direct JSON parse failed, attempting extraction...');
-            // fallback: attempt to extract JSON substring
-            const start = cleanText.indexOf('{');
-            const end = cleanText.lastIndexOf('}');
-            if (start !== -1 && end !== -1 && end > start) {
-                const jsonSubstring = cleanText.slice(start, end + 1);
+            
+            // Try to find and extract a complete JSON object
+            const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                let extracted = jsonMatch[0];
+                // Try to fix common JSON issues
                 try {
-                    soapNote = JSON.parse(jsonSubstring);
-                    console.log('✅ Extracted JSON parsed successfully');
-                } catch (_) {
-                    console.error('❌ Extracted JSON also failed:', _.message);
-                    throw err; // rethrow original error
+                    // Remove any trailing content after the closing brace
+                    const lastBrace = extracted.lastIndexOf('}');
+                    if (lastBrace > 0) {
+                        extracted = extracted.substring(0, lastBrace + 1);
+                    }
+                    // Fix common issues
+                    extracted = extracted
+                        .replace(/,\s*}/g, '}')
+                        .replace(/,\s*]/g, ']');
+                    
+                    soapNote = JSON.parse(extracted);
+                    console.log('✅ Extracted and parsed JSON successfully');
+                } catch (extractErr) {
+                    console.log('⚠️  Extraction parse failed:', extractErr.message);
                 }
-            } else {
-                console.error('❌ No JSON block found in response');
+            }
+            
+            // If still failed, try parsing line by line to find complete object
+            if (!soapNote) {
+                const lines = cleanText.split('\n');
+                let jsonLines = [];
+                let inJson = false;
+                let braceCount = 0;
+                
+                for (const line of lines) {
+                    if (line.includes('{')) inJson = true;
+                    if (inJson) {
+                        jsonLines.push(line);
+                        braceCount += (line.match(/{/g) || []).length;
+                        braceCount -= (line.match(/}/g) || []).length;
+                        if (braceCount === 0 && jsonLines.length > 1) {
+                            break; // Found complete JSON
+                        }
+                    }
+                }
+                
+                if (jsonLines.length > 0) {
+                    try {
+                        const reconstructed = jsonLines.join('\n')
+                            .replace(/,\s*}/g, '}')
+                            .replace(/,\s*]/g, ']');
+                        soapNote = JSON.parse(reconstructed);
+                        console.log('✅ Line-by-line JSON parsed successfully');
+                    } catch (e) {
+                        console.log('⚠️  Line-by-line also failed');
+                    }
+                }
+            }
+            
+            if (!soapNote) {
+                console.error('❌ All JSON extraction methods failed:', err.message);
+                // Instead of throwing, return the fallback with the error info
                 throw err;
             }
         }
