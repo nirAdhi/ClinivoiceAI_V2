@@ -168,9 +168,8 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
         const modelCandidates = [];
         if (process.env.GEMINI_MODEL) modelCandidates.push(process.env.GEMINI_MODEL);
         modelCandidates.push(
-            'gemini-1.5-flash-8b',
-            'gemini-1.5-flash',
-            'gemini-1.5-pro'
+            'gemini-2.5-flash',
+            'gemini-2.5-flash-001'
         );
         let chosenModel = null;
         let text = '';
