@@ -345,14 +345,15 @@ function AdminPanel({ onClose }) {
                         <th>Role</th>
                         <th>Plan</th>
                         <th>Status</th>
-                        <th>Usage</th>
+                        <th>Trial Uses</th>
+                        <th>Days Left</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredUsers.map(u => (
                         <tr key={u.user_id}>
-                          <td><strong>{u.user_id}</strong></td>
+                          <td><strong>{u.user_id}</strong>{u.is_locked && <span style={{color: 'red', marginLeft: 5}}>🔒</span>}</td>
                           <td>{u.name || '-'}</td>
                           <td>{u.email || '-'}</td>
                           <td><span className="domain-badge">{u.domain}</span></td>
@@ -376,7 +377,22 @@ function AdminPanel({ onClose }) {
                             {u.whitelist_id && <span className="whitelist-badge">⭐</span>}
                           </td>
                           <td className="usage-cell">
-                            {u.usage_count || 0} / {u.transcription_limit || '∞'}
+                            {u.subscription_status === 'trial' ? (
+                              <span style={{color: u.trial_uses_left > 3 ? 'green' : u.trial_uses_left > 0 ? 'orange' : 'red'}}>
+                                {u.trial_uses_left}/10
+                              </span>
+                            ) : (
+                              '-'
+                            )}
+                          </td>
+                          <td>
+                            {u.days_left !== null ? (
+                              <span style={{color: u.days_left > 7 ? 'green' : u.days_left > 0 ? 'orange' : 'red'}}>
+                                {u.days_left > 0 ? `${u.days_left} days` : 'Expired'}
+                              </span>
+                            ) : (
+                              '-'
+                            )}
                           </td>
                           <td className="admin-actions">
                             {u.user_id !== 'admin' && (

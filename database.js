@@ -170,6 +170,10 @@ async function initializeTables() {
                 end_date DATE,
                 status VARCHAR(20) DEFAULT 'trial',
                 cancel_at_period_end BOOLEAN DEFAULT FALSE,
+                trial_uses INT DEFAULT 0,
+                trial_start_date DATE,
+                is_locked BOOLEAN DEFAULT FALSE,
+                locked_at DATE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 UNIQUE KEY unique_user_subscription (user_id),
@@ -630,6 +634,15 @@ const incrementTranscriptionUsage = async (userId, month = null) => {
          ON DUPLICATE KEY UPDATE usage_count = usage_count + 1`,
         [userId, targetMonth]
     );
+    
+    // Also increment trial_uses if user is on trial
+    const subscription = await getUserSubscription(userId);
+    if (subscription && subscription.status === 'trial') {
+        await promisePool.query(
+            'UPDATE subscriptions SET trial_uses = trial_uses + 1 WHERE user_id = ? AND status = ?',
+            [userId, 'trial']
+        );
+    }
 };
 
 const resetMonthlyUsage = async (userId) => {
@@ -658,9 +671,39 @@ const canUserTranscribe = async (userId) => {
     if (!subscription) {
         return { allowed: false, reason: 'no_subscription', usage: 0, limit: 0 };
     }
+    
+    // Check if locked by admin
+    if (subscription.is_locked) {
+        return { allowed: false, reason: 'locked', usage: 0, limit: 0 };
+    }
 
+    // Check subscription status
     if (subscription.status !== 'active' && subscription.status !== 'trial') {
         return { allowed: false, reason: 'inactive_subscription', usage: 0, limit: 0 };
+    }
+    
+    // Check trial expiry (10 uses max)
+    if (subscription.status === 'trial') {
+        const trialUses = subscription.trial_uses || 0;
+        if (trialUses >= 10) {
+            return { allowed: false, reason: 'trial_expired', usage: trialUses, limit: 10 };
+        }
+    }
+    
+    // Check subscription expiry
+    if (subscription.end_date) {
+        const endDate = new Date(subscription.end_date);
+        const today = new Date();
+        const daysLeft = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+        
+        if (daysLeft <= 0) {
+            return { allowed: false, reason: 'subscription_expired', usage: 0, limit: 0 };
+        }
+        
+        // After 28 days, warn but allow
+        if (daysLeft <= 2) {
+            // Allow but return warning
+        }
     }
 
     // Check usage vs limit (null limit = unlimited)
@@ -686,6 +729,7 @@ const getAllUsersWithDetails = async () => {
         SELECT 
             u.id, u.user_id, u.name, u.email, u.domain, u.role, u.created_at, u.last_login,
             s.plan_id, s.status as subscription_status, s.cancel_at_period_end,
+            s.trial_uses, s.trial_start_date, s.is_locked, s.locked_at, s.end_date,
             p.name as plan_name, p.display_name as plan_display_name, p.price, p.transcription_limit,
             w.id as whitelist_id,
             COALESCE(tu.usage_count, 0) as usage_count
@@ -696,7 +740,36 @@ const getAllUsersWithDetails = async () => {
         LEFT JOIN transcription_usage tu ON u.id = tu.user_id AND tu.month = DATE_FORMAT(NOW(), '%Y-%m-01')
         ORDER BY u.created_at DESC
     `);
-    return rows;
+    
+    // Calculate days until renewal for each user
+    return rows.map(user => {
+        let daysLeft = null;
+        let needsRenewalPrompt = false;
+        
+        if (user.end_date) {
+            const endDate = new Date(user.end_date);
+            const today = new Date();
+            const diffTime = endDate - today;
+            daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            // After 28 days, prompt for renewal every login
+            if (daysLeft <= 2 && daysLeft > 0) {
+                needsRenewalPrompt = true;
+            }
+        }
+        
+        // Trial users: show uses left (10 - trial_uses)
+        const trialUsesLeft = user.subscription_status === 'trial' ? Math.max(0, 10 - (user.trial_uses || 0)) : null;
+        const trialExpired = user.subscription_status === 'trial' && (user.trial_uses || 0) >= 10;
+        
+        return {
+            ...user,
+            days_left: daysLeft,
+            trial_uses_left: trialUsesLeft,
+            trial_expired: trialExpired,
+            needs_renewal_prompt: needsRenewalPrompt
+        };
+    });
 };
 
 const updateUserRole = async (userId, role) => {
@@ -740,9 +813,16 @@ const assignPlanToUser = async (userId, planId, status = 'active') => {
     endDate.setMonth(endDate.getMonth() + 1);
     
     await promisePool.query(
-        `INSERT INTO subscriptions (user_id, plan_id, start_date, end_date, status) 
-         VALUES (?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE plan_id = ?, start_date = ?, end_date = ?, status = ?`,
+        `INSERT INTO subscriptions (user_id, plan_id, start_date, end_date, status, trial_uses, is_locked, locked_at) 
+         VALUES (?, ?, ?, ?, ?, 0, FALSE, NULL)
+         ON DUPLICATE KEY UPDATE 
+            plan_id = ?, 
+            start_date = ?, 
+            end_date = ?, 
+            status = ?,
+            trial_uses = 0,
+            is_locked = FALSE,
+            locked_at = NULL`,
         [userId, planId, startDate, endDate, status, planId, startDate, endDate, status]
     );
 };

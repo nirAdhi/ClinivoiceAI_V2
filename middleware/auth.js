@@ -98,7 +98,10 @@ async function checkSubscription(req, res, next) {
             const messages = {
                 'no_subscription': 'No active subscription found. Please subscribe to continue.',
                 'inactive_subscription': 'Your subscription is not active. Please renew or contact support.',
-                'limit_exceeded': `You have reached your monthly transcription limit (${check.limit}). Upgrade your plan or wait for next month.`
+                'limit_exceeded': `You have reached your monthly transcription limit (${check.limit}). Upgrade your plan or wait for next month.`,
+                'trial_expired': 'Your free trial (10 uses) has expired. Please subscribe to continue.',
+                'subscription_expired': 'Your subscription has expired. Please renew to continue.',
+                'locked': 'Your account has been locked. Please contact admin for assistance.'
             };
 
             return res.status(403).json({
