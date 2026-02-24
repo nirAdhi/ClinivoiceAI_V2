@@ -1354,28 +1354,105 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
 
                   {aiNote ? (
                     <div className="note-preview">
-                      {aiNote.subjective && (
+                      {aiNote.patient && (
                         <div className="soap-section">
-                          <strong>Subjective</strong>
-                          <p>{aiNote.subjective}</p>
+                          <strong>Patient</strong>
+                          <p>{aiNote.patient}</p>
                         </div>
                       )}
-                      {aiNote.objective && (
+                      {aiNote.date && (
                         <div className="soap-section">
-                          <strong>Objective</strong>
-                          <p>{aiNote.objective}</p>
+                          <strong>Date</strong>
+                          <p>{aiNote.date}</p>
+                        </div>
+                      )}
+                      {aiNote.dentist && (
+                        <div className="soap-section">
+                          <strong>Dentist</strong>
+                          <p>{aiNote.dentist}</p>
+                        </div>
+                      )}
+                      {aiNote.visitType && (
+                        <div className="soap-section">
+                          <strong>Visit Type</strong>
+                          <p>{aiNote.visitType}</p>
+                        </div>
+                      )}
+                      {aiNote.chiefComplaint && (
+                        <div className="soap-section">
+                          <strong>Chief Complaint</strong>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.chiefComplaint}</p>
+                        </div>
+                      )}
+                      {aiNote.historyOfPresentIllness && (
+                        <div className="soap-section">
+                          <strong>History of Present Illness</strong>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.historyOfPresentIllness}</p>
+                        </div>
+                      )}
+                      {aiNote.medicalHistory && (
+                        <div className="soap-section">
+                          <strong>Medical History</strong>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.medicalHistory}</p>
+                        </div>
+                      )}
+                      {aiNote.dentalHistory && (
+                        <div className="soap-section">
+                          <strong>Dental History</strong>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.dentalHistory}</p>
+                        </div>
+                      )}
+                      {aiNote.intraOralExamination && (
+                        <div className="soap-section">
+                          <strong>Intra Oral Examination</strong>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.intraOralExamination}</p>
+                        </div>
+                      )}
+                      {aiNote.diagnosticProcedures && (
+                        <div className="soap-section">
+                          <strong>Diagnostic Procedures</strong>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.diagnosticProcedures}</p>
                         </div>
                       )}
                       {aiNote.assessment && (
                         <div className="soap-section">
                           <strong>Assessment</strong>
-                          <p>{aiNote.assessment}</p>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.assessment}</p>
+                        </div>
+                      )}
+                      {aiNote.educationRecommendations && (
+                        <div className="soap-section">
+                          <strong>Education & Recommendations</strong>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.educationRecommendations}</p>
+                        </div>
+                      )}
+                      {aiNote.patientResponse && (
+                        <div className="soap-section">
+                          <strong>Patient Response</strong>
+                          <p>{aiNote.patientResponse}</p>
                         </div>
                       )}
                       {aiNote.plan && (
                         <div className="soap-section">
                           <strong>Plan</strong>
-                          <p>{aiNote.plan}</p>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.plan}</p>
+                        </div>
+                      )}
+                      {aiNote.subjective && !aiNote.patient && (
+                        <div className="soap-section">
+                          <strong>Subjective</strong>
+                          <p>{aiNote.subjective}</p>
+                        </div>
+                      )}
+                      {aiNote.objective && !aiNote.patient && (
+                        <div className="soap-section">
+                          <strong>Objective</strong>
+                          <p>{aiNote.objective}</p>
+                        </div>
+                      )}
+                      {aiNote._error && (
+                        <div className="soap-section" style={{ opacity: 0.6, fontSize: '0.85em' }}>
+                          <small>⚠️ Note generated with template (AI parsing failed)</small>
                         </div>
                       )}
                     </div>

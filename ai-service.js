@@ -181,28 +181,13 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
         let prompt;
         let responseSchema;
         if (domain === 'dental') {
-            prompt = `You are a professional dental scribe AI assistant. Based on the following clinical transcription, generate a detailed dental examination report in JSON format.
+            prompt = `Generate a dental note JSON from this transcription. Return ONLY valid JSON, no markdown.
 
-Transcription: "${transcription}"
+Transcription: "${transcription.substring(0, 2000)}"
 
-Generate a comprehensive dental examination report with these exact fields and structure:
+Return JSON with these fields: patient, date, dentist, visitType, chiefComplaint, historyOfPresentIllness, medicalHistory, dentalHistory, intraOralExamination, diagnosticProcedures, assessment, educationRecommendations, patientResponse, plan.
 
-1. patient: Extract the patient's first name from the transcription. The patient is the person RECEIVING dental care (the one who says "I'm nervous" or "my tooth hurts"). Look for patterns like "gums John your teeth", "how are you John", or "Good morning John". The patient is John, NOT Dr Elena.
-2. date: "[Insert Date]"
-3. dentist: Extract the dentist's name from the transcription. The dentist is the PROVIDER of care - the one being addressed as "Dr" (e.g., "Dr Elena", "Dr Smith") or who says "let me examine you". The dentist is NEVER the one saying "I'm nervous" or "my tooth hurts".
-4. visitType: Type of visit (e.g., "Routine Dental Examination & Consultation")
-5. chiefComplaint: Main reason for visit - use line breaks with dashes for multiple items (e.g., "- Sensitivity in lower right molar\n- Bleeding gums during brushing")
-6. historyOfPresentIllness: History with line breaks and dashes for each point
-7. medicalHistory: Use "Not discussed/No concerns mentioned. (Update if applicable)" if not mentioned
-8. dentalHistory: Previous visits and habits with line breaks and dashes
-9. intraOralExamination: Examination findings with line breaks and dashes
-10. diagnosticProcedures: Tests ordered, add "(Update results once available)" if pending
-11. assessment: Assessment with line breaks and dashes for each finding
-12. educationRecommendations: Recommendations with line breaks and dashes
-13. patientResponse: Patient response to instructions
-14. plan: Treatment plan with line breaks and dashes
-
-IMPORTANT: Use "\n- " to separate multiple items within each section. Each bullet point should start with a dash on a new line. Return ONLY valid JSON with these exact keys. Do not include any markdown formatting or code blocks.`;
+Use brief bullet points. Complete all fields even if brief. End with closing brace.`;
 
             responseSchema = {
                 type: 'object',
@@ -225,17 +210,11 @@ IMPORTANT: Use "\n- " to separate multiple items within each section. Each bulle
                 required: ['patient','date','dentist','visitType','chiefComplaint','historyOfPresentIllness','assessment','plan']
             };
         } else {
-            prompt = `You are a professional dental scribe AI assistant. Based on the following clinical transcription, generate a structured dental note in JSON format.
+            prompt = `Generate a brief SOAP note JSON from this. Return ONLY valid JSON.
 
-Transcription: "${transcription}"
+Transcription: "${transcription.substring(0, 2000)}"
 
-Generate a comprehensive dental note with these exact fields:
-- subjective: The patient's reported symptoms and history (2-3 sentences)
-- objective: Observable clinical findings (2-3 sentences) 
-- assessment: Clinical diagnosis or assessment (1-2 sentences)
-- plan: Treatment plan and recommendations (2-3 sentences)
-
-Return ONLY valid JSON with these exact keys. Do not include any markdown formatting or code blocks.`;
+Return JSON with: subjective, objective, assessment, plan. Complete all fields. End with closing brace.`;
 
             responseSchema = {
                 type: 'object',
