@@ -181,13 +181,7 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
         let prompt;
         let responseSchema;
         if (domain === 'dental') {
-            prompt = `Generate a dental note JSON from this transcription. Return ONLY valid JSON, no markdown.
-
-Transcription: "${transcription.substring(0, 2000)}"
-
-Return JSON with these fields: patient, date, dentist, visitType, chiefComplaint, historyOfPresentIllness, medicalHistory, dentalHistory, intraOralExamination, diagnosticProcedures, assessment, educationRecommendations, patientResponse, plan.
-
-Use brief bullet points. Complete all fields even if brief. End with closing brace.`;
+            prompt = `Create dental note JSON. Transcription: "${transcription.substring(0, 1500)}". Fields: patient, date (today), dentist, visitType, chiefComplaint, historyOfPresentIllness, medicalHistory, dentalHistory, intraOralExamination, diagnosticProcedures, assessment, educationRecommendations, patientResponse, plan. Use simple format. End JSON with }.`;
 
             responseSchema = {
                 type: 'object',
@@ -427,40 +421,51 @@ Return JSON with: subjective, objective, assessment, plan. Complete all fields. 
         const errMsg = (error && error.message) ? error.message : String(error);
         console.error('❌ Gemini/OpenAI note generation error:', errMsg);
 
-        // Domain-specific offline fallback to keep UX consistent
+        // Domain-specific offline fallback - extract from transcription directly (FAST)
         if (domain === 'dental') {
             const today = new Date();
             const dateStr = today.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' });
             const text = String(transcription || '').trim();
-            const firstSentence = text.split(/(?<=[.!?])\s+/)[0] || 'Patient reports sensitivity and gum bleeding during brushing.';
-            const rest = text.slice(firstSentence.length).trim();
+            
+            // Extract patient name - look for common patterns
+            let patientName = '[Patient Name]';
+            const patientMatch = text.match(/(?:patient|name|this is|I'm)\s+([A-Z][a-z]+)/i);
+            if (patientMatch) patientName = patientMatch[1];
+            
+            // Extract dentist name
+            let dentistName = '[Dentist Name]';
+            const dentistMatch = text.match(/(?:Dr\.?|Doctor)\s+([A-Z][a-z]+)/i);
+            if (dentistMatch) dentistName = 'Dr. ' + dentistMatch[1];
+
+            // Extract first 500 chars as chief complaint
+            const chiefComplaint = text.length > 500 ? text.substring(0, 500) + '...' : text;
 
             return {
                 _error: errMsg,
                 _provider: process.env.AI_PROVIDER || 'auto',
-                patient: '[Patient Name]',
+                patient: patientName,
                 date: dateStr,
-                dentist: '[Dentist Name]',
-                visitType: 'Routine Dental Examination & Consultation',
-                chiefComplaint: '- Sensitivity in the lower right molar\n- Bleeding gums during brushing',
-                historyOfPresentIllness: '- Sensitivity has been present for an unspecified duration\n- Gum bleeding noted while brushing\n- Last dental visit was "a while ago"\n- Patient acknowledges nervousness regarding the appointment',
+                dentist: dentistName,
+                visitType: 'Dental Examination & Consultation',
+                chiefComplaint: chiefComplaint,
+                historyOfPresentIllness: '- See chief complaint above',
                 medicalHistory: 'Not discussed/No concerns mentioned. (Update if applicable)',
-                dentalHistory: '- No recent dental visits\n- Inconsistent oral hygiene\n- Irregular flossing habits',
-                intraOralExamination: '- Teeth and gums appear generally healthy\n- Signs of gingival inflammation present\n- Plaque accumulation noted as likely contributing to bleeding',
-                diagnosticProcedures: '- Dental X-rays ordered to assess teeth, roots, and possible underlying pathology\n- Awaiting radiographic evaluation. (Update results once available)',
-                assessment: '- Gingival inflammation likely due to inadequate plaque control\n- Possible localized sensitivity at lower right molar (exact diagnosis pending X-ray evaluation)',
-                educationRecommendations: '- Reinforced importance of twice-daily brushing with a soft-bristle toothbrush\n- Demonstrated proper gentle circular brushing technique\n- Emphasized regular flossing to reduce plaque accumulation and prevent gum disease\n- Recommended toothbrush replacement every 3 months\n- Encouraged routine dental visits for prevention and early diagnosis',
-                patientResponse: 'Patient understood instructions and expressed intention to improve oral hygiene habits.',
-                plan: '- Review X-ray results at next step\n- Consider scaling/periodontal cleaning if indicated\n- Follow-up based on radiographic findings and response to hygiene improvements'
+                dentalHistory: '- No recent dental visits mentioned',
+                intraOralExamination: '- Examination pending',
+                diagnosticProcedures: '- To be determined',
+                assessment: '- Requires further evaluation',
+                educationRecommendations: '- Maintain good oral hygiene',
+                patientResponse: 'Patient acknowledged instructions.',
+                plan: '- Follow up as needed'
             };
         }
 
-        // Generic dental fallback
+        // Generic fallback
         return {
             _error: errMsg,
             _domain: domain,
             _model: process.env.GEMINI_MODEL || 'auto',
-            subjective: 'AI generation error - using fallback note. Patient reports dental symptoms as described in transcription.',
+            subjective: 'Patient reports symptoms as described in transcription.',
             objective: 'Clinical findings as documented.',
             assessment: 'Requires further evaluation.',
             plan: 'Continue monitoring and follow-up as needed.'
