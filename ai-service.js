@@ -7,7 +7,8 @@ const genAI = process.env.GEMINI_API_KEY
     : null;
 
 if (genAI) {
-    console.log('✅ Gemini AI initialized with API key');
+    const keyPreview = process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.substring(0, 10) + '...' : 'none';
+    console.log('✅ Gemini AI initialized with API key:', keyPreview);
 } else {
     console.log('⚠️  No GEMINI_API_KEY found - will use mock data');
 }
@@ -167,10 +168,9 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
         const modelCandidates = [];
         if (process.env.GEMINI_MODEL) modelCandidates.push(process.env.GEMINI_MODEL);
         modelCandidates.push(
-            'gemini-1.5-pro-latest',
-            'gemini-1.5-flash-latest',
-            'gemini-1.0-pro-latest',
-            'gemini-pro'
+            'gemini-2.0-flash-exp',
+            'gemini-1.5-pro',
+            'gemini-1.5-flash'
         );
         let chosenModel = null;
         let text = '';
@@ -284,8 +284,7 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
                 try {
                     const url = `https://generativelanguage.googleapis.com/v1/models/${encodeURIComponent(modelName)}:generateContent?key=${process.env.GEMINI_API_KEY}`;
                     const body = {
-                        contents: [{ role: 'user', parts: [{ text: prompt }]}],
-                        generationConfig: { responseMimeType: 'application/json' }
+                        contents: [{ role: 'user', parts: [{ text: prompt }]}]
                     };
                     const r = await fetch(url, {
                         method: 'POST',
