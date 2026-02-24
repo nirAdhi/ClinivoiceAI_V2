@@ -257,15 +257,10 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
                 const model = genAI.getGenerativeModel({ model: modelName });
                 let result;
                 try {
-                    result = await model.generateContent({
-                        contents: [{ role: 'user', parts: [{ text: prompt }]}],
-                        generationConfig: {
-                            responseMimeType: 'application/json',
-                            responseSchema
-                        }
-                    });
+                    // Try with JSON response format (newer models)
+                    result = await model.generateContent(prompt);
                 } catch (firstErr) {
-                    console.warn('⚠️ generationConfig path failed, retrying with plain prompt...', firstErr?.message || firstErr);
+                    console.warn('⚠️ Generation failed, retrying...', firstErr?.message || firstErr);
                     result = await model.generateContent(prompt);
                 }
                 const response = await result.response;
