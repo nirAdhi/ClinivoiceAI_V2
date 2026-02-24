@@ -343,8 +343,36 @@ async function initializeTables() {
         }
 
         logger.success('Database tables ready');
+        
+        // Run migrations for missing columns
+        await runMigrations();
     } catch (error) {
         logger.error('Error initializing tables:', error);
+    }
+}
+
+async function runMigrations() {
+    try {
+        // Add missing columns to subscriptions table
+        const subscriptionsColumns = [
+            { name: 'trial_uses', sql: 'ALTER TABLE subscriptions ADD COLUMN trial_uses INT DEFAULT 0' },
+            { name: 'trial_start_date', sql: 'ALTER TABLE subscriptions ADD COLUMN trial_start_date DATE' },
+            { name: 'is_locked', sql: 'ALTER TABLE subscriptions ADD COLUMN is_locked BOOLEAN DEFAULT FALSE' },
+            { name: 'locked_at', sql: 'ALTER TABLE subscriptions ADD COLUMN locked_at DATE' }
+        ];
+        
+        for (const col of subscriptionsColumns) {
+            try {
+                await promisePool.query(col.sql);
+                logger.info(`Migration: Added column ${col.name}`);
+            } catch (e) {
+                // Ignore if column already exists
+            }
+        }
+        
+        logger.info('Migrations complete');
+    } catch (error) {
+        logger.error('Migration error:', error);
     }
 }
 
