@@ -320,41 +320,59 @@ Return JSON with: subjective, objective, assessment, plan. Complete all fields. 
 
         let soapNote = null;
         
-        // Method 1: Direct parse
-        try {
-            soapNote = JSON.parse(cleanText);
-            console.log('✅ Method 1: Direct parse worked');
-        } catch (e) {
-            // Method 2: Find JSON in text
-            const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
+        // Method 1: Find FIRST complete JSON object only
+        // Look for the first { and find its matching }
+        const firstBrace = cleanText.indexOf('{');
+        if (firstBrace !== -1) {
+            let braceCount = 0;
+            let endPos = -1;
+            for (let i = firstBrace; i < cleanText.length; i++) {
+                if (cleanText[i] === '{') braceCount++;
+                else if (cleanText[i] === '}') {
+                    braceCount--;
+                    if (braceCount === 0) {
+                        endPos = i + 1;
+                        break;
+                    }
+                }
+            }
+            
+            if (endPos > 0) {
+                let jsonStr = cleanText.substring(firstBrace, endPos);
+                // Fix trailing commas
+                jsonStr = jsonStr.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+                
                 try {
-                    // Find the last closing brace
-                    let jsonStr = jsonMatch[0];
-                    const lastBrace = jsonStr.lastIndexOf('}');
-                    if (lastBrace > 0) jsonStr = jsonStr.substring(0, lastBrace + 1);
-                    // Fix trailing commas
-                    jsonStr = jsonStr.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
                     soapNote = JSON.parse(jsonStr);
-                    console.log('✅ Method 2: Extracted JSON worked');
-                } catch (e2) {
-                    console.log('⚠️ Method 2 failed:', e2.message);
+                    console.log('✅ Method 1: First JSON extracted, keys:', Object.keys(soapNote).slice(0, 5));
+                } catch (e) {
+                    console.log('⚠️ Method 1 failed:', e.message);
                 }
             }
         }
         
-        // Method 3: Try to build from key-value pairs if still failed
+        // Method 2: Try direct parse if method 1 failed
+        if (!soapNote) {
+            try {
+                soapNote = JSON.parse(cleanText);
+                console.log('✅ Method 2: Direct parse worked');
+            } catch (e) {
+                console.log('⚠️ Method 2 failed:', e.message);
+            }
+        }
+
+        // Method 3: Extract key-value pairs if still failed
         if (!soapNote && cleanText.includes('patient')) {
-            console.log('🔄 Trying Method 3: Extract from text...');
+            console.log('🔄 Trying Method 3: Field extraction...');
             try {
                 const extractField = (field) => {
                     const patterns = [
-                        new RegExp(`"${field}"\\s*:\\s*"([^"]*(?:\\"[^"]*)*)"`, 'i'),
-                        new RegExp(`${field}\\s*[:=]\\s*([^\\n]+)`, 'i'),
+                        new RegExp(`"${field}"\\s*:\\s*"([^"]*)"`, 'i'),
+                        new RegExp(`${field}\\s*:\\s*"([^"]*)"`, 'i'),
                     ];
                     for (const p of patterns) {
                         const m = cleanText.match(p);
-                        if (m) return m[1].replace(/\\"/g, '"').trim();
+                        if (m) return m[1].trim();
                     }
                     return '';
                 };
@@ -364,15 +382,15 @@ Return JSON with: subjective, objective, assessment, plan. Complete all fields. 
                     date: extractField('date') || new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
                     dentist: extractField('dentist') || '[Dentist Name]',
                     visitType: extractField('visitType') || 'Dental Examination',
-                    chiefComplaint: extractField('chiefComplaint') || extractField('chief_complaint') || '- See transcript',
-                    historyOfPresentIllness: extractField('historyOfPresentIllness') || extractField('history_of_present_illness') || '- See transcript',
-                    medicalHistory: extractField('medicalHistory') || extractField('medical_history') || 'Not discussed',
-                    dentalHistory: extractField('dentalHistory') || extractField('dental_history') || '- See transcript',
-                    intraOralExamination: extractField('intraOralExamination') || extractField('intra_oral_examination') || '- Examination pending',
-                    diagnosticProcedures: extractField('diagnosticProcedures') || extractField('diagnostic_procedures') || '- To be determined',
+                    chiefComplaint: extractField('chiefComplaint') || '- See transcript',
+                    historyOfPresentIllness: extractField('historyOfPresentIllness') || '- See transcript',
+                    medicalHistory: extractField('medicalHistory') || 'Not discussed',
+                    dentalHistory: extractField('dentalHistory') || '- See transcript',
+                    intraOralExamination: extractField('intraOralExamination') || '- Examination pending',
+                    diagnosticProcedures: extractField('diagnosticProcedures') || '- To be determined',
                     assessment: extractField('assessment') || '- Assessment pending',
-                    educationRecommendations: extractField('educationRecommendations') || extractField('education_recommendations') || '- Maintain oral hygiene',
-                    patientResponse: extractField('patientResponse') || extractField('patient_response') || '- Acknowledged',
+                    educationRecommendations: extractField('educationRecommendations') || '- Maintain oral hygiene',
+                    patientResponse: extractField('patientResponse') || '- Acknowledged',
                     plan: extractField('plan') || '- Follow up as needed'
                 };
                 console.log('✅ Method 3: Field extraction worked');
