@@ -180,14 +180,9 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
 
         let prompt;
         if (domain === 'dental') {
-            const shortTranscript = transcription.substring(0, 1000);
-            prompt = `Convert this dental transcription to a dental note. Return ONLY valid JSON like this example, no other text:
-
-{"patient":"John","date":"Feb 24, 2026","dentist":"Dr. Smith","visitType":"Examination","chiefComplaint":"Tooth pain","historyOfPresentIllness":"3 days","medicalHistory":"None","dentalHistory":"Regular checkups","intraOralExamination":"Normal","diagnosticProcedures":"X-ray","assessment":"Cavity","educationRecommendations":"Floss daily","patientResponse":"Understood","plan":"Filling"}
-
-Transcription: "${shortTranscript}"
-
-Now return ONLY the JSON, no explanation:`;
+            const shortTranscript = transcription.substring(0, 800);
+            prompt = `Dental JSON: ${shortTranscript}. Return ONLY JSON like:
+{"patient":"Name","date":"Date","dentist":"Dr.Name","visitType":"Exam","chiefComplaint":"issue","historyOfPresentIllness":"duration","medicalHistory":"none","dentalHistory":"none","intraOralExamination":"normal","diagnosticProcedures":"none","assessment":"diagnosis","educationRecommendations":"none","patientResponse":"ok","plan":"follow up"}`;
 
             responseSchema = {
                 type: 'object',
