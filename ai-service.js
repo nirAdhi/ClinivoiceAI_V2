@@ -494,7 +494,22 @@ Return JSON with: subjective, objective, assessment, plan. Complete all fields. 
     }
 }
 
+// Dual-mode dispatcher: legacy AI (AI_MODE=legacy) or current AI flow
+const legacyModule = (() => {
+  try { return require('./ai-service-legacy'); } catch { return null; }
+})();
+
 module.exports = {
-    transcribeAudio,
-    generateMedicalNote
+  transcribeAudio: (audioBuffer) => {
+    if (process.env.AI_MODE === 'legacy' && legacyModule && typeof legacyModule.transcribeAudio === 'function') {
+      return legacyModule.transcribeAudio(audioBuffer);
+    }
+    return transcribeAudio(audioBuffer);
+  },
+  generateMedicalNote: async (transcription, domain) => {
+    if (process.env.AI_MODE === 'legacy' && legacyModule && typeof legacyModule.generateMedicalNote === 'function') {
+      return legacyModule.generateMedicalNote(transcription, domain);
+    }
+    return await generateMedicalNote(transcription, domain);
+  }
 };
