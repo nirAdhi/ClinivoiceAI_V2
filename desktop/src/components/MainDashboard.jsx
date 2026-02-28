@@ -1355,10 +1355,10 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                   {aiNote ? (
                     <div className="note-preview">
                       <div className="note-header-bar">
-                        <span><strong>Patient:</strong> {aiNote.patient}</span>
-                        <span><strong>Date:</strong> {aiNote.date}</span>
-                        <span><strong>Dentist:</strong> {aiNote.dentist}</span>
-                        <span><strong>Visit Type:</strong> {aiNote.visitType}</span>
+                        <div className="note-header-item"><strong>Patient:</strong> {aiNote.patient}</div>
+                        <div className="note-header-item"><strong>Date:</strong> {aiNote.date}</div>
+                        <div className="note-header-item"><strong>Dentist:</strong> {aiNote.dentist}</div>
+                        <div className="note-header-item"><strong>Visit Type:</strong> {aiNote.visitType}</div>
                       </div>
                       
                       {aiNote.chiefComplaint && (

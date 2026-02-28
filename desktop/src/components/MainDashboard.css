@@ -483,7 +483,8 @@
 }
 .note-header-bar {
   display: flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
   align-items: center;
   padding: 8px 12px;
   border-radius: 6px;
@@ -492,7 +493,7 @@
   color: #12314b;
   font-size: 13px;
 }
-.note-header-bar span { white-space: nowrap; }
+.note-header-item { display: inline-flex; align-items: center; white-space: nowrap; }
 .copy-btn {
     float: right;
     background: var(--brand-purple);
