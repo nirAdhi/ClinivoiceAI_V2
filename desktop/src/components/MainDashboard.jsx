@@ -1457,27 +1457,7 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                           <p>{aiNote.patientResponse}</p>
                         </div>
                       )}
-                      {aiNote.plan && (
-                        <div className="soap-section">
-                          <div className="section-title-inline">
-                            <span className="section-emoji">📋</span>
-                            <strong>Plan</strong>
-                          </div>
-                          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.plan)}>Copy me</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.plan}</p>
-                        </div>
-                      )}
-                    </div>
-                      <div className="note-header-line">
-                        <strong>Date:</strong> {aiNote.date}
-                      </div>
-                      <div className="note-header-line">
-                        <strong>Dentist:</strong> {aiNote.dentist}
-                      </div>
-<div className="                      note-header-line">
-                        <strong>Visit Type:</strong> {aiNote.visitType}
-                      </div>
-                      
+
                       {aiNote.chiefComplaint && (
                         <div className="soap-section">
                           <div className="section-header">
