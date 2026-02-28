@@ -481,6 +481,18 @@
     color: var(--text);
     margin-bottom: 4px;
 }
+.note-header-bar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #e8f0ff;
+  border: 1px solid #d6e8ff;
+  color: #12314b;
+  font-size: 13px;
+}
+.note-header-bar span { white-space: nowrap; }
 .copy-btn {
     float: right;
     background: var(--brand-purple);
