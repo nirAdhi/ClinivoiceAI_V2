@@ -91,3 +91,4 @@ Thumbs.db
 *.tmp
 *.temp
 nul
+desktop/dist/
