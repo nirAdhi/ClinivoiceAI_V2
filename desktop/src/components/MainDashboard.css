@@ -467,12 +467,71 @@
     margin-bottom: 12px;
     border-left: 4px solid var(--brand-purple);
 }
+
+/* Color-coded section backgrounds matching the second image design */
+.soap-section.section-chiefComplaint {
+    background: linear-gradient(135deg, #dcfce7 0%, #d1fae5 100%);
+    border-left-color: #10b981;
+}
+
+.soap-section.section-historyOfPresentIllness {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border-left-color: #ef4444;
+}
+
+.soap-section.section-medicalHistory {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    border-left-color: #3b82f6;
+}
+
+.soap-section.section-dentalHistory {
+    background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+    border-left-color: #8b5cf6;
+}
+
+.soap-section.section-intraOralExamination {
+    background: linear-gradient(135deg, #fef9c3 0%, #fde68a 100%);
+    border-left-color: #eab308;
+}
+
+.soap-section.section-diagnosticProcedures {
+    background: linear-gradient(135deg, #cffafe 0%, #a5f3fc 100%);
+    border-left-color: #06b6d4;
+}
+
+.soap-section.section-assessment {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border-left-color: #ef4444;
+}
+
+.soap-section.section-educationRecommendations {
+    background: linear-gradient(135deg, #ecfccb 0%, #d9f99d 100%);
+    border-left-color: #84cc16;
+}
+
+.soap-section.section-patientResponse {
+    background: linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%);
+    border-left-color: #14b8a6;
+}
+
+.soap-section.section-plan {
+    background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+    border-left-color: #6366f1;
+}
 .section-header {
     display: flex;
     align-items: center;
     gap: 8px;
     margin-bottom: 8px;
 }
+
+.section-title-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
 .section-emoji {
     font-size: 16px;
 }
@@ -481,6 +540,19 @@
     color: var(--text);
     margin-bottom: 4px;
 }
+.note-header-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #e8f0ff;
+  border: 1px solid #d6e8ff;
+  color: #12314b;
+  font-size: 13px;
+}
+.note-header-item { display: inline-flex; align-items: center; white-space: nowrap; }
 .copy-btn {
     float: right;
     background: var(--brand-purple);

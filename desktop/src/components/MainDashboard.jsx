@@ -1354,222 +1354,138 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
 
                   {aiNote ? (
                     <div className="note-preview">
-                      <div className="note-header-line">
-                        <strong>Patient:</strong> {aiNote.patient}
-                      </div>
-                      <div className="note-header-line">
-                        <strong>Date:</strong> {aiNote.date}
-                      </div>
-                      <div className="note-header-line">
-                        <strong>Dentist:</strong> {aiNote.dentist}
-                      </div>
-                      <div className="note-header-line">
-                        <strong>Visit Type:</strong> {aiNote.visitType}
-                      </div>
+                      {/* Patient Information Header */}
+                      {aiNote.patientInfo && (
+                        <div className="note-header-bar">
+                          <div className="note-header-item"><strong>Patient:</strong> {aiNote.patientInfo.name}</div>
+                          <div className="note-header-item"><strong>Provider:</strong> {aiNote.patientInfo.provider}</div>
+                          <div className="note-header-item"><strong>Visit Type:</strong> {aiNote.patientInfo.visitType}</div>
+                          {aiNote.patientInfo.referralSource && (
+                            <div className="note-header-item"><strong>Referral:</strong> {aiNote.patientInfo.referralSource}</div>
+                          )}
+                        </div>
+                      )}
                       
+                      {/* Chief Complaint */}
                       {aiNote.chiefComplaint && (
-                        <div className="soap-section">
+                        <div className="soap-section section-chiefComplaint">
                           <div className="section-title-inline">
                             <span className="section-emoji">🦷</span>
-                            <strong>Chief Complaint</strong>
+                            <strong>Chief Complaint (CC)</strong>
                           </div>
-                          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.chiefComplaint)}>Copy me</button>
+                          <button className="copy-btn" onClick={() => { setCopyPreview(aiNote.chiefComplaint); setShowCopyModal(true); }}>Copy me</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.chiefComplaint}</p>
-                        </div>
-                      )}
-                      {aiNote.historyOfPresentIllness && (
-                        <div className="soap-section">
-                          <div className="section-title-inline">
-                            <span className="section-emoji">📋</span>
-                            <strong>History of Present Illness</strong>
-                          </div>
-                          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.historyOfPresentIllness)}>Copy me</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.historyOfPresentIllness}</p>
-                        </div>
-                      )}
-                      {aiNote.medicalHistory && (
-                        <div className="soap-section">
-                          <div className="section-title-inline">
-                            <span className="section-emoji">⚕️</span>
-                            <strong>Medical History</strong>
-                          </div>
-                          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.medicalHistory)}>Copy me</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.medicalHistory}</p>
-                        </div>
-                      )}
-                      {aiNote.dentalHistory && (
-                        <div className="soap-section">
-                          <div className="section-title-inline">
-                            <span className="section-emoji">🪥</span>
-                            <strong>Dental History</strong>
-                          </div>
-                          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.dentalHistory)}>Copy me</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.dentalHistory}</p>
-                        </div>
-                      )}
-                      {aiNote.intraOralExamination && (
-                        <div className="soap-section">
-                          <div className="section-title-inline">
-                            <span className="section-emoji">👁️</span>
-                            <strong>Intraoral Examination</strong>
-                          </div>
-                          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.intraOralExamination)}>Copy me</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.intraOralExamination}</p>
-                        </div>
-                      )}
-                      {aiNote.diagnosticProcedures && (
-                        <div className="soap-section">
-                          <div className="section-title-inline">
-                            <span className="section-emoji">🔬</span>
-                            <strong>Diagnostic Procedures</strong>
-                          </div>
-                          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.diagnosticProcedures)}>Copy me</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.diagnosticProcedures}</p>
-                        </div>
-                      )}
-                      {aiNote.assessment && (
-                        <div className="soap-section">
-                          <div className="section-title-inline">
-                            <span className="section-emoji">📊</span>
-                            <strong>Assessment</strong>
-                          </div>
-                          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.assessment)}>Copy me</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.assessment}</p>
-                        </div>
-                      )}
-                      {aiNote.educationRecommendations && (
-                        <div className="soap-section">
-                          <div className="section-title-inline">
-                            <span className="section-emoji">📚</span>
-                            <strong>Education & Recommendations</strong>
-                          </div>
-                          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.educationRecommendations)}>Copy me</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.educationRecommendations}</p>
-                        </div>
-                      )}
-                      {aiNote.patientResponse && (
-                        <div className="soap-section">
-                          <div className="section-title-inline">
-                            <span className="section-emoji">💬</span>
-                            <strong>Patient Response</strong>
-                          </div>
-                          <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.patientResponse)}>Copy me</button>
-                          <p>{aiNote.patientResponse}</p>
                         </div>
                       )}
 
-                      {aiNote.chiefComplaint && (
-                        <div className="soap-section">
-                          <div className="section-header">
-                            <span className="section-emoji">🦷</span>
-                            <strong>Chief Complaint</strong>
-                            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.chiefComplaint)}>Copy me</button>
-                          </div>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.chiefComplaint}</p>
-                        </div>
-                      )}
+                      {/* History of Present Illness */}
                       {aiNote.historyOfPresentIllness && (
-                        <div className="soap-section">
-                          <div className="section-header">
+                        <div className="soap-section section-historyOfPresentIllness">
+                          <div className="section-title-inline">
                             <span className="section-emoji">📋</span>
-                            <strong>History of Present Illness</strong>
-                            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.historyOfPresentIllness)}>Copy me</button>
+                            <strong>History of Present Illness (HPI)</strong>
                           </div>
+                          <button className="copy-btn" onClick={() => { setCopyPreview(aiNote.historyOfPresentIllness); setShowCopyModal(true); }}>Copy me</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.historyOfPresentIllness}</p>
                         </div>
                       )}
+
+                      {/* Medical History */}
                       {aiNote.medicalHistory && (
-                        <div className="soap-section">
-                          <div className="section-header">
+                        <div className="soap-section section-medicalHistory">
+                          <div className="section-title-inline">
                             <span className="section-emoji">⚕️</span>
                             <strong>Medical History</strong>
-                            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.medicalHistory)}>Copy me</button>
                           </div>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.medicalHistory}</p>
+                          <button className="copy-btn" onClick={() => { const text = typeof aiNote.medicalHistory === 'object' ? JSON.stringify(aiNote.medicalHistory, null, 2) : aiNote.medicalHistory; setCopyPreview(text); setShowCopyModal(true); }}>Copy me</button>
+                          {typeof aiNote.medicalHistory === 'object' ? (
+                            <div>
+                              {aiNote.medicalHistory.allergies && <p><strong>Allergies:</strong> {aiNote.medicalHistory.allergies}</p>}
+                              {aiNote.medicalHistory.disorders && <p><strong>Disorders:</strong> {aiNote.medicalHistory.disorders}</p>}
+                              {aiNote.medicalHistory.psychosocial && <p><strong>Psychosocial:</strong> {aiNote.medicalHistory.psychosocial}</p>}
+                            </div>
+                          ) : (
+                            <p style={{ whiteSpace: 'pre-line' }}>{aiNote.medicalHistory}</p>
+                          )}
                         </div>
                       )}
-                      {aiNote.dentalHistory && (
-                        <div className="soap-section">
-                          <div className="section-header">
-                            <span className="section-emoji">🪥</span>
-                            <strong>Dental History</strong>
-                            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.dentalHistory)}>Copy me</button>
-                          </div>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.dentalHistory}</p>
-                        </div>
-                      )}
-                      {aiNote.intraOralExamination && (
-                        <div className="soap-section">
-                          <div className="section-header">
+
+                      {/* Extraoral & TMJ Examination */}
+                      {aiNote.extraoralTMJExam && (
+                        <div className="soap-section section-intraOralExamination">
+                          <div className="section-title-inline">
                             <span className="section-emoji">👁️</span>
-                            <strong>Intraoral Examination</strong>
-                            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.intraOralExamination)}>Copy me</button>
+                            <strong>Extraoral & TMJ Examination</strong>
                           </div>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.intraOralExamination}</p>
+                          <button className="copy-btn" onClick={() => { const text = typeof aiNote.extraoralTMJExam === 'object' ? JSON.stringify(aiNote.extraoralTMJExam, null, 2) : aiNote.extraoralTMJExam; setCopyPreview(text); setShowCopyModal(true); }}>Copy me</button>
+                          {typeof aiNote.extraoralTMJExam === 'object' ? (
+                            <div>
+                              {aiNote.extraoralTMJExam.musclePalpation && (
+                                <div style={{ marginBottom: '10px' }}>
+                                  <strong>Muscle Palpation:</strong>
+                                  {aiNote.extraoralTMJExam.musclePalpation.temporalisRight && <p style={{ marginLeft: '10px' }}>• Temporalis Right: {aiNote.extraoralTMJExam.musclePalpation.temporalisRight}</p>}
+                                  {aiNote.extraoralTMJExam.musclePalpation.temporalisLeft && <p style={{ marginLeft: '10px' }}>• Temporalis Left: {aiNote.extraoralTMJExam.musclePalpation.temporalisLeft}</p>}
+                                  {aiNote.extraoralTMJExam.musclePalpation.masseterRight && <p style={{ marginLeft: '10px' }}>• Masseter Right: {aiNote.extraoralTMJExam.musclePalpation.masseterRight}</p>}
+                                  {aiNote.extraoralTMJExam.musclePalpation.masseterLeft && <p style={{ marginLeft: '10px' }}>• Masseter Left: {aiNote.extraoralTMJExam.musclePalpation.masseterLeft}</p>}
+                                  {aiNote.extraoralTMJExam.musclePalpation.notes && <p style={{ marginLeft: '10px' }}><em>{aiNote.extraoralTMJExam.musclePalpation.notes}</em></p>}
+                                </div>
+                              )}
+                              {aiNote.extraoralTMJExam.tmjEvaluation && <p><strong>TMJ Evaluation:</strong> {aiNote.extraoralTMJExam.tmjEvaluation}</p>}
+                            </div>
+                          ) : (
+                            <p style={{ whiteSpace: 'pre-line' }}>{aiNote.extraoralTMJExam}</p>
+                          )}
                         </div>
                       )}
-                      {aiNote.diagnosticProcedures && (
-                        <div className="soap-section">
-                          <div className="section-header">
-                            <span className="section-emoji">🔬</span>
-                            <strong>Diagnostic Procedures</strong>
-                            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.diagnosticProcedures)}>Copy me</button>
-                          </div>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.diagnosticProcedures}</p>
-                        </div>
-                      )}
-                      {aiNote.assessment && (
-                        <div className="soap-section">
-                          <div className="section-header">
+
+                      {/* Diagnosis */}
+                      {aiNote.diagnosis && (
+                        <div className="soap-section section-assessment">
+                          <div className="section-title-inline">
                             <span className="section-emoji">📊</span>
-                            <strong>Assessment</strong>
-                            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.assessment)}>Copy me</button>
+                            <strong>Diagnosis (Provisional)</strong>
                           </div>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.assessment}</p>
+                          <button className="copy-btn" onClick={() => { setCopyPreview(aiNote.diagnosis); setShowCopyModal(true); }}>Copy me</button>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.diagnosis}</p>
                         </div>
                       )}
-                      {aiNote.educationRecommendations && (
-                        <div className="soap-section">
-                          <div className="section-header">
-                            <span className="section-emoji">📚</span>
-                            <strong>Education & Recommendations</strong>
-                            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.educationRecommendations)}>Copy me</button>
+
+                      {/* Treatment Provided */}
+                      {aiNote.treatmentProvided && (
+                        <div className="soap-section section-diagnosticProcedures">
+                          <div className="section-title-inline">
+                            <span className="section-emoji">�</span>
+                            <strong>Treatment Provided</strong>
                           </div>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.educationRecommendations}</p>
+                          <button className="copy-btn" onClick={() => { setCopyPreview(aiNote.treatmentProvided); setShowCopyModal(true); }}>Copy me</button>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.treatmentProvided}</p>
                         </div>
                       )}
-                      {aiNote.patientResponse && (
-                        <div className="soap-section">
-                          <div className="section-header">
-                            <span className="section-emoji">💬</span>
-                            <strong>Patient Response</strong>
-                            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.patientResponse)}>Copy me</button>
+
+                      {/* Treatment Plan */}
+                      {aiNote.treatmentPlan && (
+                        <div className="soap-section section-plan">
+                          <div className="section-title-inline">
+                            <span className="section-emoji">�</span>
+                            <strong>Treatment Plan</strong>
                           </div>
-                          <p>{aiNote.patientResponse}</p>
+                          <button className="copy-btn" onClick={() => { setCopyPreview(aiNote.treatmentPlan); setShowCopyModal(true); }}>Copy me</button>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.treatmentPlan}</p>
                         </div>
                       )}
-                      {aiNote.plan && (
-                        <div className="soap-section">
-                          <div className="section-header">
-                            <span className="section-emoji">📋</span>
-                            <strong>Plan</strong>
-                            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(aiNote.plan)}>Copy me</button>
+
+                      {/* Prognosis */}
+                      {aiNote.prognosis && (
+                        <div className="soap-section section-patientResponse">
+                          <div className="section-title-inline">
+                            <span className="section-emoji">�</span>
+                            <strong>Prognosis</strong>
                           </div>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.plan}</p>
+                          <button className="copy-btn" onClick={() => { setCopyPreview(aiNote.prognosis); setShowCopyModal(true); }}>Copy me</button>
+                          <p>{aiNote.prognosis}</p>
                         </div>
                       )}
-                      {aiNote.subjective && !aiNote.patient && (
-                        <div className="soap-section">
-                          <strong>Subjective</strong>
-                          <p>{aiNote.subjective}</p>
-                        </div>
-                      )}
-                      {aiNote.objective && !aiNote.patient && (
-                        <div className="soap-section">
-                          <strong>Objective</strong>
-                          <p>{aiNote.objective}</p>
-                        </div>
-                      )}
+
                     </div>
                   ) : (
                     <div className="note-empty">

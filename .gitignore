@@ -91,3 +91,5 @@ Thumbs.db
 *.tmp
 *.temp
 nul
+desktop/dist/
+VoiceToText_old/
