@@ -7,6 +7,7 @@ function AdminPanel({ onClose }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [plans, setPlans] = useState([])
+  const [plansError, setPlansError] = useState('')
   const [whitelistedUsers, setWhitelistedUsers] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [analytics, setAnalytics] = useState(null)
@@ -43,8 +44,10 @@ function AdminPanel({ onClose }) {
       if (!res.ok) throw new Error('Failed to load plans')
       const data = await res.json()
       setPlans(data)
+      setPlansError('')
     } catch (e) {
       console.error('Failed to load plans:', e)
+      setPlansError(e.message)
     }
   }
 
@@ -427,6 +430,11 @@ function AdminPanel({ onClose }) {
             {/* PRICING TAB */}
             {activeTab === 'pricing' && (
               <div className="admin-content">
+                {plansError && (
+                  <div className="error-banner" style={{ padding: '12px', background: '#fee2e2', color: '#991b1b', borderRadius: '8px', marginBottom: '16px' }}>
+                    Error loading plans: {plansError}
+                  </div>
+                )}
                 <div className="section-header">
                   <h3>Plan Management</h3>
                   <button 

@@ -783,7 +783,11 @@ app.post('/api/admin/whitelist', checkAuth, checkAdmin, async (req, res) => {
         const { userId, reason } = req.body;
         if (!userId) return res.status(400).json({ error: 'userId required' });
 
-        await db.addToWhitelist(userId, reason || 'Admin granted', req.user.id);
+        // Look up the numeric user ID from the string user_id
+        const [[user]] = await db.promisePool.query('SELECT id FROM users WHERE user_id = ?', [userId]);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        await db.addToWhitelist(user.id, reason || 'Admin granted', req.user.id);
         res.json({ message: 'User added to whitelist' });
     } catch (error) {
         console.error('Error adding to whitelist:', error);
@@ -795,7 +799,12 @@ app.post('/api/admin/whitelist', checkAuth, checkAdmin, async (req, res) => {
 app.delete('/api/admin/whitelist/:userId', checkAuth, checkAdmin, async (req, res) => {
     try {
         const { userId } = req.params;
-        await db.removeFromWhitelist(userId);
+        
+        // Look up the numeric user ID from the string user_id
+        const [[user]] = await db.promisePool.query('SELECT id FROM users WHERE user_id = ?', [userId]);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        await db.removeFromWhitelist(user.id);
         res.json({ message: 'User removed from whitelist' });
     } catch (error) {
         console.error('Error removing from whitelist:', error);
