@@ -353,7 +353,10 @@ function AdminPanel({ onClose }) {
                     <tbody>
                       {filteredUsers.map(u => (
                         <tr key={u.user_id}>
-                          <td><strong>{u.user_id}</strong>{u.is_locked && <span style={{color: 'red', marginLeft: 5}}>🔒</span>}</td>
+                          <td>
+                            <strong>{u.user_id.replace(/0+$/, '')}</strong>
+                            {u.is_locked && <span style={{color: 'red', marginLeft: 5}}>🔒</span>}
+                          </td>
                           <td>{u.name || '-'}</td>
                           <td>{u.email || '-'}</td>
                           <td><span className="domain-badge">{u.domain}</span></td>
@@ -398,11 +401,11 @@ function AdminPanel({ onClose }) {
                             {u.user_id !== 'admin' && (
                               <>
                                 {!u.whitelist_id ? (
-                                  <button onClick={() => addToWhitelist(u.id)} className="btn-small btn-success" title="Give unlimited access">
+                                  <button onClick={() => addToWhitelist(u.user_id)} className="btn-small btn-success" title="Give unlimited access">
                                     ⭐
                                   </button>
                                 ) : (
-                                  <button onClick={() => removeFromWhitelist(u.id)} className="btn-small btn-warning" title="Remove unlimited access">
+                                  <button onClick={() => removeFromWhitelist(u.user_id)} className="btn-small btn-warning" title="Remove unlimited access">
                                     🔓
                                   </button>
                                 )}
@@ -523,7 +526,7 @@ function AdminPanel({ onClose }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {users.filter(u => u.plan_name || u.subscription_status).map(u => (
+                      {users.filter(u => true).map(u => (
                         <tr key={u.user_id}>
                           <td><strong>{u.user_id}</strong></td>
                           <td>{u.plan_display_name || 'No plan'}</td>

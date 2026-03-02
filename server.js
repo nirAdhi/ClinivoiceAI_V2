@@ -44,7 +44,12 @@ app.get('/mobile', (req, res) => {
     res.sendFile(path.join(__dirname, 'mobile.html'));
 });
 
-// SPA fallback for /desktop routes (must be after static assets)
+// Serve index.html for exact /desktop path
+app.get('/desktop', (req, res) => {
+    res.sendFile(path.join(__dirname, 'desktop', 'dist', 'index.html'));
+});
+
+// SPA fallback for /desktop/* routes (must be after static assets)
 app.get('/desktop/*', (req, res) => {
     res.sendFile(path.join(__dirname, 'desktop', 'dist', 'index.html'));
 });
