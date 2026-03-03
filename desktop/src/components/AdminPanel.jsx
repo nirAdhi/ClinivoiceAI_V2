@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import './AdminPanel.css'
+// AdminPanel component with x-admin-id auth fixes
 
 function AdminPanel({ onClose }) {
   const [activeTab, setActiveTab] = useState('users')
