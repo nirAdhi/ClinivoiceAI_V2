@@ -27,7 +27,9 @@ function AdminPanel({ onClose }) {
   const fetchUsers = async () => {
     try {
       setLoading(true)
-      const res = await fetch('/api/admin/users/details?adminId=admin')
+      const res = await fetch('/api/admin/users/details', {
+        headers: { 'x-admin-id': 'admin' }
+      })
       if (!res.ok) throw new Error('Failed to load users')
       const data = await res.json()
       setUsers(data)
@@ -40,7 +42,9 @@ function AdminPanel({ onClose }) {
 
   const fetchPlans = async () => {
     try {
-      const res = await fetch('/api/admin/plans?adminId=admin')
+      const res = await fetch('/api/admin/plans', {
+        headers: { 'x-admin-id': 'admin' }
+      })
       if (!res.ok) throw new Error('Failed to load plans')
       const data = await res.json()
       setPlans(data)
@@ -68,7 +72,9 @@ function AdminPanel({ onClose }) {
 
   const fetchAnalytics = async () => {
     try {
-      const res = await fetch('/api/admin/analytics?adminId=admin')
+      const res = await fetch('/api/admin/analytics', {
+        headers: { 'x-admin-id': 'admin' }
+      })
       if (res.ok) {
         const data = await res.json()
         setAnalytics(data)
@@ -80,7 +86,9 @@ function AdminPanel({ onClose }) {
 
   const fetchPlanHistory = async () => {
     try {
-      const res = await fetch('/api/admin/plans/history?adminId=admin')
+      const res = await fetch('/api/admin/plans/history', {
+        headers: { 'x-admin-id': 'admin' }
+      })
       if (res.ok) {
         const data = await res.json()
         setPlanHistory(data)
@@ -97,7 +105,9 @@ function AdminPanel({ onClose }) {
     }
     try {
       setLoading(true)
-      const res = await fetch(`/api/admin/users/search?q=${encodeURIComponent(term)}&adminId=admin`)
+      const res = await fetch(`/api/admin/users/search?q=${encodeURIComponent(term)}`, {
+        headers: { 'x-admin-id': 'admin' }
+      })
       if (res.ok) {
         const data = await res.json()
         setUsers(data)
@@ -127,7 +137,10 @@ function AdminPanel({ onClose }) {
   const deleteUser = async (user_id) => {
     if (!confirm(`Delete user ${user_id}? This also deletes their sessions.`)) return
     try {
-      const res = await fetch(`/api/admin/users/${encodeURIComponent(user_id)}?adminId=admin`, { method: 'DELETE' })
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(user_id)}`, { 
+        method: 'DELETE',
+        headers: { 'x-admin-id': 'admin' }
+      })
       if (!res.ok) throw new Error('Delete failed')
       await fetchUsers()
       pushToast('User deleted successfully')
@@ -138,9 +151,12 @@ function AdminPanel({ onClose }) {
 
   const changeRole = async (userId, newRole) => {
     try {
-      const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/role?adminId=admin`, {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/role`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-id': 'admin'
+        },
         body: JSON.stringify({ role: newRole })
       })
       if (!res.ok) throw new Error('Failed to update role')
@@ -169,9 +185,12 @@ function AdminPanel({ onClose }) {
 
   const assignPlan = async (userId, planId) => {
     try {
-      const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/assign-plan?adminId=admin`, {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/assign-plan`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-id': 'admin'
+        },
         body: JSON.stringify({ planId, status: 'active' })
       })
       if (!res.ok) throw new Error('Failed to assign plan')
@@ -185,8 +204,9 @@ function AdminPanel({ onClose }) {
   const cancelSubscription = async (userId) => {
     if (!confirm('Cancel this subscription?')) return
     try {
-      const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/cancel-subscription?adminId=admin`, {
-        method: 'POST'
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/cancel-subscription`, {
+        method: 'POST',
+        headers: { 'x-admin-id': 'admin' }
       })
       if (!res.ok) throw new Error('Failed to cancel subscription')
       pushToast('Subscription cancelled')
@@ -242,13 +262,16 @@ function AdminPanel({ onClose }) {
   const savePlan = async (planData) => {
     try {
       const url = editingPlan 
-        ? `/api/admin/plans/${editingPlan.id}?adminId=admin`
-        : '/api/admin/plans?adminId=admin'
+        ? `/api/admin/plans/${editingPlan.id}`
+        : '/api/admin/plans'
       const method = editingPlan ? 'PUT' : 'POST'
       
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-id': 'admin'
+        },
         body: JSON.stringify(planData)
       })
 
@@ -472,9 +495,12 @@ function AdminPanel({ onClose }) {
                         <button 
                           className="btn-small btn-ghost"
                           onClick={async () => {
-                            await fetch(`/api/admin/plans/${plan.id}?adminId=admin`, {
+                            await fetch(`/api/admin/plans/${plan.id}`, {
                               method: 'PUT',
-                              headers: { 'Content-Type': 'application/json' },
+                              headers: { 
+                                'Content-Type': 'application/json',
+                                'x-admin-id': 'admin'
+                              },
                               body: JSON.stringify({ is_active: !plan.is_active })
                             })
                             fetchPlans()
@@ -536,7 +562,7 @@ function AdminPanel({ onClose }) {
                     <tbody>
                       {users.filter(u => true).map(u => (
                         <tr key={u.user_id}>
-                          <td><strong>{u.user_id}</strong></td>
+                          <td><strong>{u.user_id.replace(/0+$/, '').replace(/0(?=[^0]*$)/, '')}</strong></td>
                           <td>{u.plan_display_name || 'No plan'}</td>
                           <td>
                             <span className={`status-badge ${u.subscription_status || 'none'}`}>
@@ -605,7 +631,7 @@ function AdminPanel({ onClose }) {
                           <td>{new Date(w.created_at).toLocaleDateString()}</td>
                           <td>
                             <button
-                              onClick={() => removeFromWhitelist(w.id)}
+                              onClick={() => removeFromWhitelist(w.user_id)}
                               className="btn-small btn-danger"
                             >
                               Remove
