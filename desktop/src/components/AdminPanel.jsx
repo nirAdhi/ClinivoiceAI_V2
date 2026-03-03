@@ -57,9 +57,8 @@ function AdminPanel({ onClose }) {
 
   const fetchWhitelist = async () => {
     try {
-      if (!token) return
       const res = await fetch('/api/admin/whitelist', {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'x-admin-id': 'admin' }
       })
       if (res.ok) {
         const data = await res.json()
@@ -225,7 +224,7 @@ function AdminPanel({ onClose }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'x-admin-id': 'admin'
         },
         body: JSON.stringify({ userId, reason })
       })
@@ -244,9 +243,9 @@ function AdminPanel({ onClose }) {
     if (!confirm('Remove unlimited access for this user?')) return
 
     try {
-      const res = await fetch(`/api/admin/whitelist/${userId}`, {
+      const res = await fetch(`/api/admin/whitelist/${encodeURIComponent(userId)}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'x-admin-id': 'admin' }
       })
 
       if (!res.ok) throw new Error('Failed to remove from whitelist')
@@ -562,7 +561,7 @@ function AdminPanel({ onClose }) {
                     <tbody>
                       {users.filter(u => true).map(u => (
                         <tr key={u.user_id}>
-                          <td><strong>{u.user_id.replace(/0+$/, '').replace(/0(?=[^0]*$)/, '')}</strong></td>
+                          <td><strong>{u.user_id.replace(/0+$/, '')}</strong></td>
                           <td>{u.plan_display_name || 'No plan'}</td>
                           <td>
                             <span className={`status-badge ${u.subscription_status || 'none'}`}>
