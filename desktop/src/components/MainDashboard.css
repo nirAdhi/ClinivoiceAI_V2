@@ -466,6 +466,14 @@
     padding: 14px;
     margin-bottom: 12px;
     border-left: 4px solid var(--brand-purple);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+}
+
+.soap-section:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: var(--brand-purple);
 }
 
 /* Color-coded section backgrounds matching the second image design */

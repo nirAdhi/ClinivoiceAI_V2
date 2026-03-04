@@ -1373,7 +1373,7 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                             <span className="section-emoji">🦷</span>
                             <strong>Chief Complaint (CC)</strong>
                           </div>
-                          <button className="copy-btn" onClick={() => { setCopyPreview(aiNote.chiefComplaint); setShowCopyModal(true); }}>Copy me</button>
+                          <button className="copy-btn" onClick={() => { const text = typeof aiNote.chiefComplaint === 'object' ? JSON.stringify(aiNote.chiefComplaint, null, 2) : aiNote.chiefComplaint; navigator.clipboard.writeText(text); pushToast('Chief Complaint copied', 'success'); }}>Copy me</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.chiefComplaint}</p>
                         </div>
                       )}
@@ -1385,7 +1385,7 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                             <span className="section-emoji">📋</span>
                             <strong>History of Present Illness (HPI)</strong>
                           </div>
-                          <button className="copy-btn" onClick={() => { setCopyPreview(aiNote.historyOfPresentIllness); setShowCopyModal(true); }}>Copy me</button>
+                          <button className="copy-btn" onClick={() => { const text = typeof aiNote.historyOfPresentIllness === 'object' ? JSON.stringify(aiNote.historyOfPresentIllness, null, 2) : aiNote.historyOfPresentIllness; navigator.clipboard.writeText(text); pushToast('HPI copied', 'success'); }}>Copy me</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.historyOfPresentIllness}</p>
                         </div>
                       )}
@@ -1397,7 +1397,7 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                             <span className="section-emoji">⚕️</span>
                             <strong>Medical History</strong>
                           </div>
-                          <button className="copy-btn" onClick={() => { const text = typeof aiNote.medicalHistory === 'object' ? JSON.stringify(aiNote.medicalHistory, null, 2) : aiNote.medicalHistory; setCopyPreview(text); setShowCopyModal(true); }}>Copy me</button>
+                          <button className="copy-btn" onClick={() => { const text = typeof aiNote.medicalHistory === 'object' ? JSON.stringify(aiNote.medicalHistory, null, 2) : aiNote.medicalHistory; navigator.clipboard.writeText(text); pushToast('Medical History copied', 'success'); }}>Copy me</button>
                           {typeof aiNote.medicalHistory === 'object' ? (
                             <div>
                               {aiNote.medicalHistory.allergies && <p><strong>Allergies:</strong> {aiNote.medicalHistory.allergies}</p>}
@@ -1417,7 +1417,7 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                             <span className="section-emoji">👁️</span>
                             <strong>Extraoral & TMJ Examination</strong>
                           </div>
-                          <button className="copy-btn" onClick={() => { const text = typeof aiNote.extraoralTMJExam === 'object' ? JSON.stringify(aiNote.extraoralTMJExam, null, 2) : aiNote.extraoralTMJExam; setCopyPreview(text); setShowCopyModal(true); }}>Copy me</button>
+                          <button className="copy-btn" onClick={() => { const text = typeof aiNote.extraoralTMJExam === 'object' ? JSON.stringify(aiNote.extraoralTMJExam, null, 2) : aiNote.extraoralTMJExam; navigator.clipboard.writeText(text); pushToast('TMJ Exam copied', 'success'); }}>Copy me</button>
                           {typeof aiNote.extraoralTMJExam === 'object' ? (
                             <div>
                               {aiNote.extraoralTMJExam.musclePalpation && (
@@ -1445,19 +1445,17 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                             <span className="section-emoji">📊</span>
                             <strong>Diagnosis (Provisional)</strong>
                           </div>
-                          <button className="copy-btn" onClick={() => { setCopyPreview(aiNote.diagnosis); setShowCopyModal(true); }}>Copy me</button>
+                          <button className="copy-btn" onClick={() => { const text = typeof aiNote.diagnosis === 'object' ? JSON.stringify(aiNote.diagnosis, null, 2) : aiNote.diagnosis; navigator.clipboard.writeText(text); pushToast('Diagnosis copied', 'success'); }}>Copy me</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.diagnosis}</p>
                         </div>
                       )}
-
-                      {/* Treatment Provided */}
                       {aiNote.treatmentProvided && (
                         <div className="soap-section section-diagnosticProcedures">
                           <div className="section-title-inline">
-                            <span className="section-emoji">�</span>
+                            <span className="section-emoji">💉</span>
                             <strong>Treatment Provided</strong>
                           </div>
-                          <button className="copy-btn" onClick={() => { setCopyPreview(aiNote.treatmentProvided); setShowCopyModal(true); }}>Copy me</button>
+                          <button className="copy-btn" onClick={() => { const text = typeof aiNote.treatmentProvided === 'object' ? JSON.stringify(aiNote.treatmentProvided, null, 2) : aiNote.treatmentProvided; navigator.clipboard.writeText(text); pushToast('Treatment Provided copied', 'success'); }}>Copy me</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.treatmentProvided}</p>
                         </div>
                       )}
@@ -1466,10 +1464,10 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                       {aiNote.treatmentPlan && (
                         <div className="soap-section section-plan">
                           <div className="section-title-inline">
-                            <span className="section-emoji">�</span>
+                            <span className="section-emoji">📋</span>
                             <strong>Treatment Plan</strong>
                           </div>
-                          <button className="copy-btn" onClick={() => { setCopyPreview(aiNote.treatmentPlan); setShowCopyModal(true); }}>Copy me</button>
+                          <button className="copy-btn" onClick={() => { const text = typeof aiNote.treatmentPlan === 'object' ? JSON.stringify(aiNote.treatmentPlan, null, 2) : aiNote.treatmentPlan; navigator.clipboard.writeText(text); pushToast('Treatment Plan copied', 'success'); }}>Copy me</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.treatmentPlan}</p>
                         </div>
                       )}
@@ -1478,10 +1476,10 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                       {aiNote.prognosis && (
                         <div className="soap-section section-patientResponse">
                           <div className="section-title-inline">
-                            <span className="section-emoji">�</span>
+                            <span className="section-emoji">🔮</span>
                             <strong>Prognosis</strong>
                           </div>
-                          <button className="copy-btn" onClick={() => { setCopyPreview(aiNote.prognosis); setShowCopyModal(true); }}>Copy me</button>
+                          <button className="copy-btn" onClick={() => { const text = typeof aiNote.prognosis === 'object' ? JSON.stringify(aiNote.prognosis, null, 2) : aiNote.prognosis; navigator.clipboard.writeText(text); pushToast('Prognosis copied', 'success'); }}>Copy me</button>
                           <p>{aiNote.prognosis}</p>
                         </div>
                       )}
