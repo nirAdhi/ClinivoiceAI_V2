@@ -436,219 +436,188 @@ Return ONLY JSON with these exact keys:
         psychosocial = psychosocialFacts.join('. ') + '.';
     }
     
-    // Extract TMJ exam details - improved patterns for dictation with more flexible matching
-    let temporalisRight = '-';
-    let temporalisLeft = '-';
-    let masseterRight = '-';
-    let masseterLeft = '-';
+    // Extract TMJ exam details - extract SHORT key findings only, not full transcript
+    let temporalisRight = '';
+    let temporalisLeft = '';
+    let masseterRight = '';
+    let masseterLeft = '';
     
-    // Look for temporalis mentions with side and tenderness info - more flexible patterns
-    const temporalisPatterns = [
-        /temporalis[^.]*?(?:right|rt)[^.]*?(?:tender|pain|sore|discomfort|hurts|ache|normal|within normal limits|wnl)[^.]*?(?:\d+[-/]?\d*)?/gi,
-        /(?:right|rt)[^.]*?temporalis[^.]*?(?:tender|pain|sore|discomfort|hurts|ache|normal|within normal limits|wnl)[^.]*?(?:\d+[-/]?\d*)?/gi,
-        /temporalis[^.]*?(?:tender|pain)[^.]*?(?:right|rt)/gi,
-        /(?:tender|painful|sore)[^.]*?(?:right|rt)[^.]*?temporalis/gi,
-        /temporalis[^.]*?(?:right|rt)[^.]*?\d+\/10/gi,
-        /(?:right|rt)[^.]*?temporalis[^.]*?\d+\/10/gi
-    ];
-    
-    for (const pattern of temporalisPatterns) {
-        const matches = text.match(pattern) || [];
-        for (const match of matches) {
-            const cleanMatch = match.replace(/\s+/g, ' ').trim();
-            if (cleanMatch && cleanMatch.length > 3) {
-                if (match.toLowerCase().includes('right') || match.toLowerCase().includes(' rt ')) {
-                    temporalisRight = cleanMatch;
-                } else if (match.toLowerCase().includes('left') || match.toLowerCase().includes(' lt ')) {
-                    temporalisLeft = cleanMatch;
+    // Extract just the key finding (tender/normal + pain score if mentioned)
+    const extractMuscleFinding = (text, muscle, side) => {
+        // Look for patterns like "temporalis right tender 5/10" or "right temporalis normal"
+        const patterns = [
+            new RegExp(`${muscle}[^.]{0,30}?${side}[^.]{0,30}?(tender|pain|sore|normal|wnl)[^.]{0,20}?(\\d+/10)?`, 'i'),
+            new RegExp(`${side}[^.]{0,30}?${muscle}[^.]{0,30}?(tender|pain|sore|normal|wnl)[^.]{0,20}?(\\d+/10)?`, 'i'),
+            new RegExp(`${side}[^.]{0,20}?${muscle}[^.]{0,20}?(\\d+/10)`, 'i')
+        ];
+        
+        for (const pattern of patterns) {
+            const match = text.match(pattern);
+            if (match) {
+                let finding = match[0].replace(/\s+/g, ' ').trim();
+                // Clean up - extract just the key phrase (max 50 chars)
+                finding = finding.replace(new RegExp(`.*${muscle}`, 'i'), muscle)
+                                .replace(new RegExp(`.*${side}`, 'i'), side + ' ' + finding.match(new RegExp(`${side}(.{0,40})`, 'i'))?.[1] || '')
+                                .trim();
+                // Limit length
+                if (finding.length > 50) {
+                    finding = finding.substring(0, 50).replace(/\s+\S*$/, '') + '...';
                 }
+                // Capitalize first letter
+                finding = finding.charAt(0).toUpperCase() + finding.slice(1);
+                return finding;
             }
+        }
+        
+        // Default if nothing found
+        return '';
+    };
+    
+    temporalisRight = extractMuscleFinding(text, 'temporalis', 'right') || '';
+    temporalisLeft = extractMuscleFinding(text, 'temporalis', 'left') || '';
+    masseterRight = extractMuscleFinding(text, 'masseter', 'right') || '';
+    masseterLeft = extractMuscleFinding(text, 'masseter', 'left') || '';
+    
+    // If still empty, look for any tenderness mention with pain scores
+    const painScoreMatch = text.match(/(\d+)\s*\/\s*10/g);
+    if (painScoreMatch && !temporalisRight && !temporalisLeft && !masseterRight && !masseterLeft) {
+        // Check context around pain scores
+        const contextMatch = text.match(/(?:temporalis|masseter)[^.]{0,50}?\d+\/10/gi);
+        if (contextMatch) {
+            const ctx = contextMatch[0].toLowerCase();
+            if (ctx.includes('right') && ctx.includes('temporalis')) temporalisRight = `Tender ${painScoreMatch[0]}`;
+            if (ctx.includes('left') && ctx.includes('temporalis')) temporalisLeft = `Tender ${painScoreMatch[0]}`;
+            if (ctx.includes('right') && ctx.includes('masseter')) masseterRight = `Tender ${painScoreMatch[0]}`;
+            if (ctx.includes('left') && ctx.includes('masseter')) masseterLeft = `Tender ${painScoreMatch[0]}`;
         }
     }
     
-    // Look for masseter mentions with side and tenderness info - more flexible patterns
-    const masseterPatterns = [
-        /masseter[^.]*?(?:right|rt)[^.]*?(?:tender|pain|sore|discomfort|hurts|ache|normal|within normal limits|wnl)[^.]*?(?:\d+[-/]?\d*)?/gi,
-        /(?:right|rt)[^.]*?masseter[^.]*?(?:tender|pain|sore|discomfort|hurts|ache|normal|within normal limits|wnl)[^.]*?(?:\d+[-/]?\d*)?/gi,
-        /masseter[^.]*?(?:tender|pain)[^.]*?(?:right|rt)/gi,
-        /(?:tender|painful|sore)[^.]*?(?:right|rt)[^.]*?masseter/gi,
-        /masseter[^.]*?(?:right|rt)[^.]*?\d+\/10/gi,
-        /(?:right|rt)[^.]*?masseter[^.]*?\d+\/10/gi
-    ];
+    // Extract TMJ evaluation - short findings only
+    let tmjEvaluation = '';
+    const tmjFindings = [];
     
-    for (const pattern of masseterPatterns) {
-        const matches = text.match(pattern) || [];
-        for (const match of matches) {
-            const cleanMatch = match.replace(/\s+/g, ' ').trim();
-            if (cleanMatch && cleanMatch.length > 3) {
-                if (match.toLowerCase().includes('right') || match.toLowerCase().includes(' rt ')) {
-                    masseterRight = cleanMatch;
-                } else if (match.toLowerCase().includes('left') || match.toLowerCase().includes(' lt ')) {
-                    masseterLeft = cleanMatch;
-                }
-            }
-        }
-    }
-    
-    // Look for tenderness mentions with pain scores
-    const tendernessPatterns = [
-        /tender[^.]*?(?:right|left)?[^.]*?(?:\d+[-/]?\d*)[^.]*\./gi,
-        /(?:right|left)[^.]*?tender[^.]*?(?:\d+[-/]?\d*)[^.]*\./gi,
-        /(?:three|four|five|six)[^.,]*(?:to|out of)[^.,]*ten/gi
-    ];
-    
-    for (const pattern of tendernessPatterns) {
-        const matches = text.match(pattern) || [];
-        for (const match of matches) {
-            if (match.toLowerCase().includes('right') && temporalisRight === '-') {
-                temporalisRight = 'Tender (' + match.replace(/\s+/g, ' ').trim() + ')';
-            }
-            if (match.toLowerCase().includes('left') && temporalisLeft === '-') {
-                temporalisLeft = 'Tender (' + match.replace(/\s+/g, ' ').trim() + ')';
-            }
-        }
-    }
-    
-    // Extract TMJ evaluation - look for opening, deviation, disc-condyle
-    let tmjEvaluation = '-';
+    // Look for specific TMJ findings (short phrases)
     const tmjPatterns = [
-        /limited[^.]*opening[^.]*\./gi,
-        /deviation[^.]*right[^.]*\./gi,
-        /disc.condyle[^.]*incoordination[^.]*\./gi,
-        /opening[^.]*measurement[^.]*\./gi,
-        /lateral[^.]*excursion[^.]*\./gi
+        { pattern: /limited[^.]{0,30}opening/gi, label: 'Limited opening' },
+        { pattern: /opening[^.]{0,20}(\d+)[^.]{0,20}mm/gi, label: 'Opening' },
+        { pattern: /deviation[^.]{0,30}(right|left)/gi, label: 'Deviation' },
+        { pattern: /disc[^.]{0,30}incoordination/gi, label: 'Disc-condyle incoordination' },
+        { pattern: /clicking|crepitus|popping/gi, label: 'Joint sounds' },
+        { pattern: /lateral[^.]{0,20}excursion[^.]{0,20}(\d+)[^.]{0,20}mm/gi, label: 'Lateral excursion' }
     ];
     
-    const tmjMatches = [];
-    for (const pattern of tmjPatterns) {
-        const matches = text.match(pattern) || [];
-        tmjMatches.push(...matches);
+    for (const { pattern, label } of tmjPatterns) {
+        const matches = text.match(pattern);
+        if (matches) {
+            const clean = matches[0].replace(/\s+/g, ' ').trim();
+            if (clean.length < 60 && !tmjFindings.includes(clean)) {
+                tmjFindings.push(clean);
+            }
+        }
     }
     
-    // Also look for general TMJ findings
-    const generalTmjMatch = text.match(/(?:tmj|joint)[^.]*(?:evaluation|exam|findings)[^.]*?(?:show|reveal|indicate)?[^.]*\./gi);
-    if (generalTmjMatch) {
-        tmjMatches.push(...generalTmjMatch);
+    if (tmjFindings.length > 0) {
+        tmjEvaluation = tmjFindings.slice(0, 3).join('. ') + '.';
     }
     
-    if (tmjMatches.length > 0) {
-        tmjEvaluation = tmjMatches.map(m => m.replace(/\s+/g, ' ').trim()).join(' ');
-    }
-    
-    // Extract diagnosis with better patterns - more flexible for natural language
+    // Extract diagnosis - short findings only
     let diagnosis = '';
-    const diagnosisPatterns = [
-        /(?:right|left|bilateral)?\s*(?:tmj|temporomandibular|joint)[^.]*?(?:disc.condyle|disc.?condyle|incoordination|dysfunction|disorder|problem|issue|pain|locking|clicking|crepitus)[^.]*?/gi,
-        /(?:myofascial|muscle)[^.]*?(?:pain|dysfunction|tension|spasm)[^.]*?/gi,
-        /(?:acute|chronic)[^.]*?(?:tmj|temporomandibular)[^.]*?/gi,
-        /(?:provisional|working|clinical|differential)?\s*diagnosis[^.]*?(?:is|:)?[^.]*?/gi,
-        /diagnosed[^.]*?(?:with|as)[^.]*?/gi,
-        /(?:findings|assessment|evaluation)[^.]*?(?:consistent with|suggest|indicate|show)[^.]*?/gi,
-        /(?:internal derangement|disc displacement|closed lock|open lock)[^.]*?/gi,
-        /(?:bruxism|clenching|grinding)[^.]*?/gi
+    const diagnosisFindings = [];
+    
+    // Look for specific diagnosis terms (short phrases, not full sentences)
+    const diagnosisTerms = [
+        { term: /tmj\s+disc[^.]{0,20}incoordination/gi, label: 'TMJ disc-condyle incoordination' },
+        { term: /myofascial[^.]{0,20}pain/gi, label: 'Myofascial pain' },
+        { term: /(?:acute|chronic)[^.]{0,10}tmj/gi, label: 'TMJ disorder' },
+        { term: /internal[^.]{0,10}derangement/gi, label: 'Internal derangement' },
+        { term: /disc[^.]{0,10}displacement/gi, label: 'Disc displacement' },
+        { term: /(closed|open)[^.]{0,10}lock/gi, label: 'Lock' },
+        { term: /bruxism|clench|grind/gi, label: 'Bruxism' },
+        { term: /joint[^.]{0,15}dysfunction/gi, label: 'Joint dysfunction' }
     ];
     
-    const diagnosisMatches = [];
-    for (const pattern of diagnosisPatterns) {
-        const matches = text.match(pattern) || [];
-        for (const match of matches) {
+    for (const { term, label } of diagnosisTerms) {
+        const matches = text.match(term);
+        if (matches) {
+            const clean = matches[0].replace(/\s+/g, ' ').trim();
+            if (clean.length < 50 && !diagnosisFindings.includes(clean)) {
+                diagnosisFindings.push(clean);
+            }
+        }
+    }
+    
+    // Look for side-specific mentions (RT/LT/bilateral)
+    const sideMatch = text.match(/(?:right|left|bilateral|rt|lt)[^.]{0,30}(?:tmj|joint|disc)/gi);
+    if (sideMatch) {
+        for (const match of sideMatch.slice(0, 2)) {
             const clean = match.replace(/\s+/g, ' ').trim();
-            if (clean && clean.length > 5 && !diagnosisMatches.includes(clean)) {
-                diagnosisMatches.push(clean);
+            if (clean.length < 40 && !diagnosisFindings.includes(clean)) {
+                diagnosisFindings.push(clean);
             }
         }
     }
     
-    // Look for specific diagnosis statements with more flexible patterns
-    const diagnosisStatement = text.match(/(?:diagnosis|diagnosed|assessment|impression)(?:\s+is|\s+with|\s+of)?[\s:]*([^.]{10,150})/gi);
-    if (diagnosisStatement) {
-        for (const stmt of diagnosisStatement) {
-            const clean = stmt.replace(/\s+/g, ' ').trim();
-            if (clean && clean.length > 5 && !diagnosisMatches.includes(clean)) {
-                diagnosisMatches.push(clean);
-            }
-        }
-    }
-    
-    // Also look for sentence-level mentions of conditions
-    const conditionSentences = text.match(/[^.]*(?:pain|tenderness|dysfunction|limited|restriction|locking|clicking|crepitus)[^.]*\./gi);
-    if (conditionSentences) {
-        for (const sentence of conditionSentences.slice(0, 3)) {
-            const clean = sentence.replace(/\s+/g, ' ').trim();
-            if (clean && clean.length > 10 && clean.length < 200 && !diagnosisMatches.includes(clean)) {
-                diagnosisMatches.push(clean);
-            }
-        }
-    }
-    
-    if (diagnosisMatches.length > 0) {
-        diagnosis = diagnosisMatches.slice(0, 4).map(m => '• ' + m).join('\n');
+    if (diagnosisFindings.length > 0) {
+        diagnosis = diagnosisFindings.slice(0, 3).map(d => '• ' + d.charAt(0).toUpperCase() + d.slice(1)).join('\n');
     } else {
-        diagnosis = '• Diagnosis pending full evaluation based on clinical findings and imaging if indicated.';
+        diagnosis = '';
     }
     
-    // Extract treatment provided - more flexible patterns
+    // Extract treatment provided - short findings only
     let treatmentProvided = '';
-    const treatmentPatterns = [
-        /(?:manual|performed|done|completed|administered|provided)[^.]*?(?:manipulation|mobilization|adjustment|treatment|procedure|therapy|injection|medication)[^.]*?/gi,
-        /(?:tmj|joint|muscle)[^.]*?(?:manipulation|reduction|mobilization|treatment|therapy)[^.]*?/gi,
-        /(?:patient|pt)[^.]*?(?:tolerated|responded|improved|did well|no adverse)[^.]*?/gi,
-        /(?:applied|placed|adjusted|reduced|manipulated)[^.]*?/gi,
-        /(?:immediate|significant|notable|marked)[^.]*?(?:relief|improvement|reduction|change)[^.]*?/gi,
-        /(?:occlusal splint|night guard|splint|appliance)[^.]*?(?:adjusted|placed|provided|given)[^.]*?/gi
+    const treatmentFindings = [];
+    
+    // Look for specific treatment terms
+    const treatmentTerms = [
+        { term: /manual[^.]{0,20}(?:tmj|manipulation|mobilization)/gi, label: 'Manual TMJ manipulation/mobilization' },
+        { term: /manipulation[^.]{0,20}(?:performed|done|completed)/gi, label: 'Manipulation performed' },
+        { term: /tmj[^.]{0,20}reduction/gi, label: 'TMJ reduction' },
+        { term: /occlusal[^.]{0,20}splint|night[^.]{0,20}guard/gi, label: 'Splint/appliance adjustment' },
+        { term: /patient[^.]{0,20}(?:tolerated|responded|improved)/gi, label: 'Patient tolerated well' }
     ];
     
-    const treatmentMatches = [];
-    for (const pattern of treatmentPatterns) {
-        const matches = text.match(pattern) || [];
-        for (const match of matches) {
-            const clean = match.replace(/\s+/g, ' ').trim();
-            if (clean && clean.length > 5 && !treatmentMatches.includes(clean)) {
-                treatmentMatches.push(clean);
+    for (const { term, label } of treatmentTerms) {
+        const matches = text.match(term);
+        if (matches) {
+            const clean = matches[0].replace(/\s+/g, ' ').trim();
+            if (clean.length < 50 && !treatmentFindings.includes(clean)) {
+                treatmentFindings.push(clean);
             }
         }
     }
     
-    // Look for sentence-level treatment descriptions
-    const treatmentSentences = text.match(/[^.]*(?:performed|administered|provided|treated|therapy|procedure)[^.]*\./gi);
-    if (treatmentSentences) {
-        for (const sentence of treatmentSentences.slice(0, 3)) {
-            const clean = sentence.replace(/\s+/g, ' ').trim();
-            if (clean && clean.length > 10 && clean.length < 200 && !treatmentMatches.includes(clean)) {
-                treatmentMatches.push(clean);
-            }
-        }
-    }
-    
-    if (treatmentMatches.length > 0) {
-        treatmentProvided = treatmentMatches.slice(0, 3).map(m => '• ' + m).join('\n');
+    if (treatmentFindings.length > 0) {
+        treatmentProvided = treatmentFindings.slice(0, 2).map(t => '• ' + t.charAt(0).toUpperCase() + t.slice(1)).join('\n');
     } else {
-        treatmentProvided = '• No specific treatment provided during this visit. Patient education and counseling given.';
+        treatmentProvided = '';
     }
     
-    // Extract treatment plan with better patterns
-    let treatmentPlan = '- Follow up as needed';
-    const planPatterns = [
-        /refer\s*to\s*physical\s*therapy[^.]*\./gi,
-        /physical\s*therapy[^.]*?(?:2x|twice)[^.]*\./gi,
-        /(?:2x|twice)\s*a?\s*week[^.]*\./gi,
-        /monitor\s*symptoms[^.]*\./gi,
-        /re.evaluation[^.]*\./gi
+    // Extract treatment plan - short findings only
+    let treatmentPlan = '';
+    const planFindings = [];
+    
+    const planTerms = [
+        { term: /refer[^.]{0,30}physical[^.]{0,20}therapy/gi, label: 'Refer to physical therapy' },
+        { term: /physical[^.]{0,20}therapy[^.]{0,20}(?:2x|twice|weekly)/gi, label: 'Physical therapy' },
+        { term: /monitor[^.]{0,20}symptoms/gi, label: 'Monitor symptoms' },
+        { term: /follow[^.]{0,20}(?:up|visit|appointment)/gi, label: 'Follow up' },
+        { term: /re[\s-]?evaluation/gi, label: 'Re-evaluation' }
     ];
     
-    const planMatches = [];
-    for (const pattern of planPatterns) {
-        const matches = text.match(pattern) || [];
-        for (const match of matches) {
-            const clean = match.replace(/\s+/g, ' ').trim();
-            if (!planMatches.includes(clean)) {
-                planMatches.push(clean);
+    for (const { term, label } of planTerms) {
+        const matches = text.match(term);
+        if (matches) {
+            const clean = matches[0].replace(/\s+/g, ' ').trim();
+            if (clean.length < 50 && !planFindings.includes(clean)) {
+                planFindings.push(clean);
             }
         }
     }
     
-    if (planMatches.length > 0) {
-        treatmentPlan = '• ' + planMatches.join('\n• ');
+    if (planFindings.length > 0) {
+        treatmentPlan = planFindings.slice(0, 3).map(p => '• ' + p.charAt(0).toUpperCase() + p.slice(1)).join('\n');
+    } else {
+        treatmentPlan = '';
     }
     
     // Extract prognosis
