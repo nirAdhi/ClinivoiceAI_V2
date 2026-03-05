@@ -1689,9 +1689,8 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                         </div>
                       )}
                       
-                      {/* Chief Complaint */}
-                      {aiNote.chiefComplaint && (
-                        <div 
+                      {/* Chief Complaint - ALWAYS SHOW */}
+                      <div 
                           className={`soap-section section-chiefComplaint ${isSelected('chiefComplaint') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
@@ -1706,13 +1705,11 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                             {isSelected('chiefComplaint') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
                           <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('chiefComplaint'); }}>{isSelected('chiefComplaint') ? 'Selected' : 'Select'}</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.chiefComplaint}</p>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.chiefComplaint || '-'}</p>
                         </div>
-                      )}
 
-                      {/* History of Present Illness */}
-                      {aiNote.historyOfPresentIllness && (
-                        <div 
+                      {/* History of Present Illness - ALWAYS SHOW */}
+                      <div 
                           className={`soap-section section-historyOfPresentIllness ${isSelected('historyOfPresentIllness') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
@@ -1727,13 +1724,11 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                             {isSelected('historyOfPresentIllness') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
                           <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('historyOfPresentIllness'); }}>{isSelected('historyOfPresentIllness') ? 'Selected' : 'Select'}</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.historyOfPresentIllness}</p>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.historyOfPresentIllness || '-'}</p>
                         </div>
-                      )}
 
-                      {/* Medical History */}
-                      {aiNote.medicalHistory && (
-                        <div 
+                      {/* Medical History - ALWAYS SHOW */}
+                      <div 
                           className={`soap-section section-medicalHistory ${isSelected('medicalHistory') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
@@ -1750,19 +1745,17 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                           <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('medicalHistory'); }}>{isSelected('medicalHistory') ? 'Selected' : 'Select'}</button>
                           {typeof aiNote.medicalHistory === 'object' ? (
                             <div>
-                              {aiNote.medicalHistory.allergies && <p><strong>Allergies:</strong> {aiNote.medicalHistory.allergies}</p>}
-                              {aiNote.medicalHistory.disorders && <p><strong>Disorders:</strong> {aiNote.medicalHistory.disorders}</p>}
-                              {aiNote.medicalHistory.psychosocial && <p><strong>Psychosocial:</strong> {aiNote.medicalHistory.psychosocial}</p>}
+                              <p><strong>Allergies:</strong> {aiNote.medicalHistory.allergies || '-'}</p>
+                              <p><strong>Disorders:</strong> {aiNote.medicalHistory.disorders || '-'}</p>
+                              <p><strong>Psychosocial:</strong> {aiNote.medicalHistory.psychosocial || '-'}</p>
                             </div>
                           ) : (
-                            <p style={{ whiteSpace: 'pre-line' }}>{aiNote.medicalHistory}</p>
+                            <p style={{ whiteSpace: 'pre-line' }}>{aiNote.medicalHistory || '-'}</p>
                           )}
                         </div>
-                      )}
 
-                      {/* Dental History */}
-                      {aiNote.dentalHistory && (
-                        <div 
+                      {/* Dental History - ALWAYS SHOW */}
+                      <div 
                           className={`soap-section section-dentalHistory ${isSelected('dentalHistory') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
@@ -1777,13 +1770,11 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                             {isSelected('dentalHistory') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
                           <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('dentalHistory'); }}>{isSelected('dentalHistory') ? 'Selected' : 'Select'}</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.dentalHistory}</p>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.dentalHistory || '-'}</p>
                         </div>
-                      )}
 
-                      {/* Clinical Examination */}
-                      {aiNote.clinicalExamination && (
-                        <div 
+                      {/* Clinical Examination - ALWAYS SHOW */}
+                      <div 
                           className={`soap-section section-clinicalExamination ${isSelected('clinicalExamination') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
@@ -1800,18 +1791,16 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                           <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('clinicalExamination'); }}>{isSelected('clinicalExamination') ? 'Selected' : 'Select'}</button>
                           {typeof aiNote.clinicalExamination === 'object' ? (
                             <div>
-                              {aiNote.clinicalExamination.extraoral && <p><strong>Extraoral:</strong> {aiNote.clinicalExamination.extraoral}</p>}
-                              {aiNote.clinicalExamination.intraoral && <p><strong>Intraoral:</strong> {aiNote.clinicalExamination.intraoral}</p>}
+                              <p><strong>Extraoral:</strong> {aiNote.clinicalExamination.extraoral || '-'}</p>
+                              <p><strong>Intraoral:</strong> {aiNote.clinicalExamination.intraoral || '-'}</p>
                             </div>
                           ) : (
-                            <p style={{ whiteSpace: 'pre-line' }}>{aiNote.clinicalExamination}</p>
+                            <p style={{ whiteSpace: 'pre-line' }}>{aiNote.clinicalExamination || '-'}</p>
                           )}
                         </div>
-                      )}
 
-                      {/* Radiographic Examination */}
-                      {aiNote.radiographicExamination && (
-                        <div 
+                      {/* Radiographic Examination - ALWAYS SHOW */}
+                      <div 
                           className={`soap-section section-radiographicExamination ${isSelected('radiographicExamination') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
@@ -1826,13 +1815,11 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                             {isSelected('radiographicExamination') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
                           <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('radiographicExamination'); }}>{isSelected('radiographicExamination') ? 'Selected' : 'Select'}</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.radiographicExamination}</p>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.radiographicExamination || '-'}</p>
                         </div>
-                      )}
 
-                      {/* Assessment (Diagnosis) */}
-                      {(aiNote.assessment || aiNote.diagnosis) && (
-                        <div 
+                      {/* Assessment - ALWAYS SHOW */}
+                      <div 
                           className={`soap-section section-assessment ${isSelected('assessment') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
@@ -1847,13 +1834,11 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                             {isSelected('assessment') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
                           <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('assessment'); }}>{isSelected('assessment') ? 'Selected' : 'Select'}</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.assessment || aiNote.diagnosis}</p>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.assessment || aiNote.diagnosis || '-'}</p>
                         </div>
-                      )}
 
-                      {/* Patient Education */}
-                      {(aiNote.patientEducation || aiNote.educationRecommendations) && (
-                        <div 
+                      {/* Patient Education - ALWAYS SHOW */}
+                      <div 
                           className={`soap-section section-patientEducation ${isSelected('patientEducation') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
@@ -1868,13 +1853,11 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                             {isSelected('patientEducation') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
                           <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('patientEducation'); }}>{isSelected('patientEducation') ? 'Selected' : 'Select'}</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.patientEducation || aiNote.educationRecommendations}</p>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.patientEducation || aiNote.educationRecommendations || '-'}</p>
                         </div>
-                      )}
 
-                      {/* Patient Response */}
-                      {aiNote.patientResponse && (
-                        <div 
+                      {/* Patient Response - ALWAYS SHOW */}
+                      <div 
                           className={`soap-section section-patientResponse ${isSelected('patientResponse') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
@@ -1889,13 +1872,11 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                             {isSelected('patientResponse') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
                           <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('patientResponse'); }}>{isSelected('patientResponse') ? 'Selected' : 'Select'}</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.patientResponse}</p>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.patientResponse || '-'}</p>
                         </div>
-                      )}
 
-                      {/* Treatment Plan */}
-                      {(aiNote.treatmentPlan || aiNote.plan) && (
-                        <div 
+                      {/* Treatment Plan - ALWAYS SHOW */}
+                      <div 
                           className={`soap-section section-treatmentPlan ${isSelected('treatmentPlan') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
@@ -1910,13 +1891,11 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                             {isSelected('treatmentPlan') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
                           <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('treatmentPlan'); }}>{isSelected('treatmentPlan') ? 'Selected' : 'Select'}</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.treatmentPlan || aiNote.plan}</p>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.treatmentPlan || aiNote.plan || '-'}</p>
                         </div>
-                      )}
 
-                      {/* Follow-Up */}
-                      {aiNote.followUp && (
-                        <div 
+                      {/* Follow-Up - ALWAYS SHOW */}
+                      <div 
                           className={`soap-section section-followUp ${isSelected('followUp') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
@@ -1931,13 +1910,11 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                             {isSelected('followUp') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
                           <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('followUp'); }}>{isSelected('followUp') ? 'Selected' : 'Select'}</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.followUp}</p>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.followUp || '-'}</p>
                         </div>
-                      )}
 
-                      {/* Prognosis */}
-                      {aiNote.prognosis && (
-                        <div 
+                      {/* Prognosis - ALWAYS SHOW */}
+                      <div 
                           className={`soap-section section-prognosis ${isSelected('prognosis') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
@@ -1952,9 +1929,8 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                             {isSelected('prognosis') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
                           <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('prognosis'); }}>{isSelected('prognosis') ? 'Selected' : 'Select'}</button>
-                          <p>{aiNote.prognosis}</p>
+                          <p>{aiNote.prognosis || '-'}</p>
                         </div>
-                      )}
 
                     </div>
                   ) : (

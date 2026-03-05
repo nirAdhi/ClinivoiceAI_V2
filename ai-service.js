@@ -143,13 +143,13 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
         const modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
         let text = '';
 
-        // Shorter transcript for faster processing (500 chars max)
-        const shortTranscript = transcription.substring(0, 500);
+        // Use FULL transcript for complete processing
+        const fullTranscript = transcription;
         
         const prompt = domain === 'dental' 
-            ? `You are a professional dental scribe. Create a detailed dental note from this transcription: "${shortTranscript}"
+            ? `You are a professional dental scribe. Create a detailed dental note from this transcription: "${fullTranscript}"
 
-Analyze the transcription carefully and extract all relevant information for each section below. Use specific details mentioned in the dictation.
+Analyze the transcription carefully and extract all relevant information for each section below. You MUST return ALL 11 sections listed below - do not omit any sections. If information is not mentioned in the transcript, return "-" or "Not discussed" for that section.
 
 Return ONLY JSON with these exact keys:
 {
@@ -157,29 +157,31 @@ Return ONLY JSON with these exact keys:
     "name": "Full patient name",
     "provider": "Provider name with Dr. prefix",
     "visitType": "Specific visit type (e.g., Routine Dental Examination & Consultation, Emergency TMJ evaluation)",
-    "referralSource": "How patient was referred"
+    "referralSource": "How patient was referred or 'Self-referred'"
   },
-  "chiefComplaint": "Patient's main complaint",
-  "historyOfPresentIllness": "Detailed HPI with duration, symptoms, aggravating factors",
+  "chiefComplaint": "Patient's main complaint - REQUIRED",
+  "historyOfPresentIllness": "Detailed HPI with duration, symptoms, aggravating factors - REQUIRED",
   "medicalHistory": {
-    "allergies": "List allergies or 'No known allergies / Not discussed'",
-    "disorders": "List systemic disorders or 'No concerns mentioned'",
-    "psychosocial": "Marital status, occupation if mentioned"
+    "allergies": "List allergies or 'No known allergies / Not discussed' - REQUIRED",
+    "disorders": "List systemic disorders or 'No concerns mentioned' - REQUIRED",
+    "psychosocial": "Marital status, occupation if mentioned, or '-' - REQUIRED"
   },
-  "dentalHistory": "Previous dental visits, oral hygiene habits, concerns",
+  "dentalHistory": "Previous dental visits, oral hygiene habits, concerns, or '-' - REQUIRED",
   "clinicalExamination": {
-    "extraoral": "No abnormalities OR specific findings (facial symmetry, TMJ, lymph nodes)",
-    "intraoral": "Teeth condition, gums, inflammation, plaque, oral cavity findings"
+    "extraoral": "Facial symmetry, TMJ, lymph nodes findings, or 'No abnormalities noted' - REQUIRED",
+    "intraoral": "Teeth condition, gums, inflammation, plaque, oral cavity findings - REQUIRED"
   },
-  "radiographicExamination": "X-rays ordered, purpose, findings, pending results",
-  "assessment": "Clinical assessment and provisional diagnosis",
-  "treatmentPlan": "Next steps, procedures planned, referrals",
-  "patientEducation": "Oral hygiene instructions demonstrated, recommendations given",
-  "patientResponse": "Patient understanding and acceptance of recommendations",
-  "followUp": "Review schedule, next appointment, monitoring plan",
-  "prognosis": "Expected outcome"
-}`
-            : `Create SOAP note JSON from: "${shortTranscript}". Return ONLY JSON with: subjective,objective,assessment,plan`;
+  "radiographicExamination": "X-rays ordered, purpose, findings, pending results, or '-' - REQUIRED",
+  "assessment": "Clinical assessment and provisional diagnosis - REQUIRED",
+  "treatmentPlan": "Next steps, procedures planned, referrals, or '-' - REQUIRED",
+  "patientEducation": "Oral hygiene instructions, recommendations given, or '-' - REQUIRED",
+  "patientResponse": "Patient understanding and acceptance, or '-' - REQUIRED",
+  "followUp": "Review schedule, next appointment, monitoring plan, or '-' - REQUIRED",
+  "prognosis": "Expected outcome, or '-' - REQUIRED"
+}
+
+IMPORTANT: Return ALL 13 keys shown above. Do not skip any sections. Use "-" for sections where no information was found in the transcript.`
+            : `Create SOAP note JSON from: "${fullTranscript}". Return ONLY JSON with: subjective,objective,assessment,plan`;
 
         console.log('📤 Sending to Gemini (model:', modelName, ')...');
         const model = genAI.getGenerativeModel({ model: modelName });
