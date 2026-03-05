@@ -733,14 +733,28 @@ Return ONLY JSON with these exact keys:
     
     // Extract prognosis - return empty string if no content
     let prognosis = '';
-    const prognosisKeywords = ['prognosis', 'expected', 'outcome', 'improve', 'good', 'fair', 'excellent', 'favorable'];
-    for (const kw of prognosisKeywords) {
-        if (text.toLowerCase().includes(kw)) {
-            const match = text.match(new RegExp('[^.]*' + kw + '[^.]{0,60}\.', 'i'));
-            if (match) {
-                prognosis = match[0].trim();
-                break;
+    const prognosisPatterns = [
+        /prognosis\s+(?:is\s+)?([^.]+\.(?:\s*Expected[^.]+\.)?)/i,
+        /expected\s+(?:to|outcome|recovery)[^.]+\./i,
+        /(?:good|fair|excellent|guarded)\s+prognosis[\s,]+[^.]+\./i
+    ];
+    for (const pattern of prognosisPatterns) {
+        const match = text.match(pattern);
+        if (match) {
+            prognosis = match[1] || match[0];
+            prognosis = prognosis.trim().replace(/^[:;\s]+/, '').replace(/\s+/g, ' ');
+            // Limit to reasonable length
+            if (prognosis.length > 200) {
+                prognosis = prognosis.substring(0, 200) + '...';
             }
+            break;
+        }
+    }
+    // If no specific prognosis found, look for outcome-related phrases
+    if (!prognosis) {
+        const outcomeMatch = text.match(/(?:should|will)\s+(?:improve|resolve|heal|recover)[^.]+\./i);
+        if (outcomeMatch) {
+            prognosis = outcomeMatch[0].trim();
         }
     }
     
