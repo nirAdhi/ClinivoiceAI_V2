@@ -857,38 +857,23 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
       addSection('dentalHistory', 'Dental History', note.dentalHistory)
     }
     
-    // Intraoral Examination (from either new field or TMJ exam for now)
-    if (note.intraOralExamination && include('intraOralExamination')) {
-      addSection('intraOralExamination', 'Intraoral Examination', note.intraOralExamination)
-    }
-    
-    // Extraoral & TMJ Examination (TMJ-specific notes)
-    if (note.extraoralTMJExam && include('extraoralTMJExam')) {
-      const tmjParts = []
-      if (typeof note.extraoralTMJExam === 'object') {
-        if (note.extraoralTMJExam.musclePalpation) {
-          const muscleParts = []
-          if (note.extraoralTMJExam.musclePalpation.temporalisRight) 
-            muscleParts.push(`Temporalis Right: ${note.extraoralTMJExam.musclePalpation.temporalisRight}`)
-          if (note.extraoralTMJExam.musclePalpation.temporalisLeft) 
-            muscleParts.push(`Temporalis Left: ${note.extraoralTMJExam.musclePalpation.temporalisLeft}`)
-          if (note.extraoralTMJExam.musclePalpation.masseterRight) 
-            muscleParts.push(`Masseter Right: ${note.extraoralTMJExam.musclePalpation.masseterRight}`)
-          if (note.extraoralTMJExam.musclePalpation.masseterLeft) 
-            muscleParts.push(`Masseter Left: ${note.extraoralTMJExam.musclePalpation.masseterLeft}`)
-          if (muscleParts.length > 0) tmjParts.push(`Muscle Palpation:\n${muscleParts.join('\n')}`)
+    // Clinical Examination (Extraoral + Intraoral)
+    if (note.clinicalExamination && include('clinicalExamination')) {
+      if (typeof note.clinicalExamination === 'object') {
+        const clinicalParts = []
+        if (note.clinicalExamination.extraoral) clinicalParts.push(`Extraoral: ${note.clinicalExamination.extraoral}`)
+        if (note.clinicalExamination.intraoral) clinicalParts.push(`Intraoral: ${note.clinicalExamination.intraoral}`)
+        if (clinicalParts.length > 0) {
+          parts.push(`Clinical Examination:\n\n${clinicalParts.join('\n\n')}`)
         }
-        if (note.extraoralTMJExam.tmjEvaluation) 
-          tmjParts.push(`TMJ Evaluation: ${note.extraoralTMJExam.tmjEvaluation}`)
-      }
-      if (tmjParts.length > 0) {
-        parts.push(`Extraoral & TMJ Examination:\n\n${tmjParts.join('\n\n')}`)
+      } else {
+        addSection('clinicalExamination', 'Clinical Examination', note.clinicalExamination)
       }
     }
     
-    // Diagnostic Procedures
-    if (note.diagnosticProcedures) {
-      addSection('diagnosticProcedures', 'Diagnostic Procedures', note.diagnosticProcedures)
+    // Radiographic Examination
+    if (note.radiographicExamination) {
+      addSection('radiographicExamination', 'Radiographic Examination', note.radiographicExamination)
     }
     
     // Assessment (Diagnosis)
@@ -897,9 +882,16 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
       addSection('assessment', 'Assessment', assessmentText)
     }
     
-    // Education & Recommendations
-    if (note.educationRecommendations) {
-      addSection('educationRecommendations', 'Education & Recommendations', note.educationRecommendations)
+    // Treatment Plan
+    if (note.treatmentPlan || note.plan) {
+      const planText = note.treatmentPlan || note.plan
+      addSection('treatmentPlan', 'Treatment Plan', planText)
+    }
+    
+    // Patient Education
+    if (note.patientEducation || note.educationRecommendations) {
+      const eduText = note.patientEducation || note.educationRecommendations
+      addSection('patientEducation', 'Patient Education', eduText)
     }
     
     // Patient Response
@@ -907,15 +899,9 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
       addSection('patientResponse', 'Patient Response', note.patientResponse)
     }
     
-    // Plan (Treatment Plan)
-    if (note.plan || note.treatmentPlan) {
-      const planText = note.plan || note.treatmentPlan
-      addSection('plan', 'Plan', planText)
-    }
-    
-    // Treatment Provided (if different from diagnostic procedures)
-    if (note.treatmentProvided) {
-      addSection('treatmentProvided', 'Treatment Provided', note.treatmentProvided)
+    // Follow-Up
+    if (note.followUp) {
+      addSection('followUp', 'Follow-Up', note.followUp)
     }
     
     // Prognosis
@@ -1113,12 +1099,14 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                 { key: 'historyOfPresentIllness', label: '📋 History of Present Illness', emoji: '📋' },
                 { key: 'medicalHistory', label: '⚕️ Medical History', emoji: '⚕️' },
                 { key: 'dentalHistory', label: '🪥 Dental History', emoji: '🪥' },
-                { key: 'intraOralExamination', label: '👁️ Intraoral Examination', emoji: '👁️' },
-                { key: 'diagnosticProcedures', label: '🔬 Diagnostic Procedures', emoji: '🔬' },
+                { key: 'clinicalExamination', label: '🔍 Clinical Examination', emoji: '🔍' },
+                { key: 'radiographicExamination', label: '📷 Radiographic Examination', emoji: '📷' },
                 { key: 'assessment', label: '📊 Assessment', emoji: '📊' },
-                { key: 'educationRecommendations', label: '📚 Education & Recommendations', emoji: '📚' },
+                { key: 'treatmentPlan', label: '📋 Treatment Plan', emoji: '📋' },
+                { key: 'patientEducation', label: '📚 Patient Education', emoji: '📚' },
                 { key: 'patientResponse', label: '💬 Patient Response', emoji: '💬' },
-                { key: 'plan', label: '📋 Plan', emoji: '📋' },
+                { key: 'followUp', label: '📅 Follow-Up', emoji: '📅' },
+                { key: 'prognosis', label: '🔮 Prognosis', emoji: '🔮' },
               ].map(s => (
                 <label key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: 4 }}>
                   <input type="checkbox" checked={isSelected(s.key)} onChange={() => toggleSection(s.key)} />
