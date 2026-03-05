@@ -490,9 +490,9 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
   const selectAllSections = () => {
     const keys = new Set([
       'header', 'chiefComplaint', 'historyOfPresentIllness', 'medicalHistory', 
-      'dentalHistory', 'intraOralExamination', 'extraoralTMJExam', 'diagnosticProcedures', 
-      'assessment', 'educationRecommendations', 'patientResponse', 'plan', 
-      'treatmentProvided', 'prognosis'
+      'dentalHistory', 'clinicalExamination', 'radiographicExamination', 
+      'assessment', 'treatmentPlan', 'patientEducation', 'patientResponse', 
+      'followUp', 'prognosis'
     ])
     setSelectedSections(keys)
   }
@@ -1793,82 +1793,52 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                         </div>
                       )}
 
-                      {/* Intraoral Examination */}
-                      {aiNote.intraOralExamination && (
+                      {/* Clinical Examination */}
+                      {aiNote.clinicalExamination && (
                         <div 
-                          className={`soap-section section-intraOralExamination ${isSelected('intraOralExamination') ? 'selected' : ''}`}
+                          className={`soap-section section-clinicalExamination ${isSelected('clinicalExamination') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
-                            toggleSection('intraOralExamination')
+                            toggleSection('clinicalExamination')
                           }}
                           style={{ cursor: 'pointer' }}
                           title="Click to select this section for Copy/PDF/Save"
                         >
                           <div className="section-title-inline">
-                            <span className="section-emoji">👄</span>
-                            <strong>Intraoral Examination</strong>
-                            {isSelected('intraOralExamination') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
+                            <span className="section-emoji">🔍</span>
+                            <strong>Clinical Examination</strong>
+                            {isSelected('clinicalExamination') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
-                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('intraOralExamination'); }}>{isSelected('intraOralExamination') ? 'Selected' : 'Select'}</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.intraOralExamination}</p>
-                        </div>
-                      )}
-
-                      {/* Extraoral & TMJ Examination */}
-                      {aiNote.extraoralTMJExam && (
-                        <div 
-                          className={`soap-section section-tmjExam ${isSelected('extraoralTMJExam') ? 'selected' : ''}`}
-                          onClick={(e) => {
-                            if (e.target.closest('.copy-btn')) return
-                            toggleSection('extraoralTMJExam')
-                          }}
-                          style={{ cursor: 'pointer' }}
-                          title="Click to select this section for Copy/PDF/Save"
-                        >
-                          <div className="section-title-inline">
-                            <span className="section-emoji">👁️</span>
-                            <strong>Extraoral & TMJ Examination</strong>
-                            {isSelected('extraoralTMJExam') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
-                          </div>
-                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('extraoralTMJExam'); }}>{isSelected('extraoralTMJExam') ? 'Selected' : 'Select'}</button>
-                          {typeof aiNote.extraoralTMJExam === 'object' ? (
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('clinicalExamination'); }}>{isSelected('clinicalExamination') ? 'Selected' : 'Select'}</button>
+                          {typeof aiNote.clinicalExamination === 'object' ? (
                             <div>
-                              {aiNote.extraoralTMJExam.musclePalpation && (
-                                <div style={{ marginBottom: '10px' }}>
-                                  <strong>Muscle Palpation:</strong>
-                                  {aiNote.extraoralTMJExam.musclePalpation.temporalisRight && <p style={{ marginLeft: '10px' }}>• Temporalis Right: {aiNote.extraoralTMJExam.musclePalpation.temporalisRight}</p>}
-                                  {aiNote.extraoralTMJExam.musclePalpation.temporalisLeft && <p style={{ marginLeft: '10px' }}>• Temporalis Left: {aiNote.extraoralTMJExam.musclePalpation.temporalisLeft}</p>}
-                                  {aiNote.extraoralTMJExam.musclePalpation.masseterRight && <p style={{ marginLeft: '10px' }}>• Masseter Right: {aiNote.extraoralTMJExam.musclePalpation.masseterRight}</p>}
-                                  {aiNote.extraoralTMJExam.musclePalpation.masseterLeft && <p style={{ marginLeft: '10px' }}>• Masseter Left: {aiNote.extraoralTMJExam.musclePalpation.masseterLeft}</p>}
-                                  {aiNote.extraoralTMJExam.musclePalpation.notes && <p style={{ marginLeft: '10px' }}><em>{aiNote.extraoralTMJExam.musclePalpation.notes}</em></p>}
-                                </div>
-                              )}
-                              {aiNote.extraoralTMJExam.tmjEvaluation && <p><strong>TMJ Evaluation:</strong> {aiNote.extraoralTMJExam.tmjEvaluation}</p>}
+                              {aiNote.clinicalExamination.extraoral && <p><strong>Extraoral:</strong> {aiNote.clinicalExamination.extraoral}</p>}
+                              {aiNote.clinicalExamination.intraoral && <p><strong>Intraoral:</strong> {aiNote.clinicalExamination.intraoral}</p>}
                             </div>
                           ) : (
-                            <p style={{ whiteSpace: 'pre-line' }}>{aiNote.extraoralTMJExam}</p>
+                            <p style={{ whiteSpace: 'pre-line' }}>{aiNote.clinicalExamination}</p>
                           )}
                         </div>
                       )}
 
-                      {/* Diagnostic Procedures */}
-                      {aiNote.diagnosticProcedures && (
+                      {/* Radiographic Examination */}
+                      {aiNote.radiographicExamination && (
                         <div 
-                          className={`soap-section section-diagnosticProcedures ${isSelected('diagnosticProcedures') ? 'selected' : ''}`}
+                          className={`soap-section section-radiographicExamination ${isSelected('radiographicExamination') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
-                            toggleSection('diagnosticProcedures')
+                            toggleSection('radiographicExamination')
                           }}
                           style={{ cursor: 'pointer' }}
                           title="Click to select this section for Copy/PDF/Save"
                         >
                           <div className="section-title-inline">
-                            <span className="section-emoji">🔬</span>
-                            <strong>Diagnostic Procedures</strong>
-                            {isSelected('diagnosticProcedures') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
+                            <span className="section-emoji">📷</span>
+                            <strong>Radiographic Examination</strong>
+                            {isSelected('radiographicExamination') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
-                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('diagnosticProcedures'); }}>{isSelected('diagnosticProcedures') ? 'Selected' : 'Select'}</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.diagnosticProcedures}</p>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('radiographicExamination'); }}>{isSelected('radiographicExamination') ? 'Selected' : 'Select'}</button>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.radiographicExamination}</p>
                         </div>
                       )}
 
@@ -1893,24 +1863,24 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                         </div>
                       )}
 
-                      {/* Education & Recommendations */}
-                      {aiNote.educationRecommendations && (
+                      {/* Patient Education */}
+                      {(aiNote.patientEducation || aiNote.educationRecommendations) && (
                         <div 
-                          className={`soap-section section-educationRecommendations ${isSelected('educationRecommendations') ? 'selected' : ''}`}
+                          className={`soap-section section-patientEducation ${isSelected('patientEducation') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
-                            toggleSection('educationRecommendations')
+                            toggleSection('patientEducation')
                           }}
                           style={{ cursor: 'pointer' }}
                           title="Click to select this section for Copy/PDF/Save"
                         >
                           <div className="section-title-inline">
                             <span className="section-emoji">📚</span>
-                            <strong>Education & Recommendations</strong>
-                            {isSelected('educationRecommendations') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
+                            <strong>Patient Education</strong>
+                            {isSelected('patientEducation') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
-                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('educationRecommendations'); }}>{isSelected('educationRecommendations') ? 'Selected' : 'Select'}</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.educationRecommendations}</p>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('patientEducation'); }}>{isSelected('patientEducation') ? 'Selected' : 'Select'}</button>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.patientEducation || aiNote.educationRecommendations}</p>
                         </div>
                       )}
 
@@ -1935,45 +1905,45 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                         </div>
                       )}
 
-                      {/* Plan */}
-                      {(aiNote.plan || aiNote.treatmentPlan) && (
+                      {/* Treatment Plan */}
+                      {(aiNote.treatmentPlan || aiNote.plan) && (
                         <div 
-                          className={`soap-section section-plan ${isSelected('plan') ? 'selected' : ''}`}
+                          className={`soap-section section-treatmentPlan ${isSelected('treatmentPlan') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
-                            toggleSection('plan')
+                            toggleSection('treatmentPlan')
                           }}
                           style={{ cursor: 'pointer' }}
                           title="Click to select this section for Copy/PDF/Save"
                         >
                           <div className="section-title-inline">
                             <span className="section-emoji">📋</span>
-                            <strong>Plan</strong>
-                            {isSelected('plan') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
+                            <strong>Treatment Plan</strong>
+                            {isSelected('treatmentPlan') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
-                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('plan'); }}>{isSelected('plan') ? 'Selected' : 'Select'}</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.plan || aiNote.treatmentPlan}</p>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('treatmentPlan'); }}>{isSelected('treatmentPlan') ? 'Selected' : 'Select'}</button>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.treatmentPlan || aiNote.plan}</p>
                         </div>
                       )}
 
-                      {/* Treatment Provided */}
-                      {aiNote.treatmentProvided && (
+                      {/* Follow-Up */}
+                      {aiNote.followUp && (
                         <div 
-                          className={`soap-section section-treatmentProvided ${isSelected('treatmentProvided') ? 'selected' : ''}`}
+                          className={`soap-section section-followUp ${isSelected('followUp') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
-                            toggleSection('treatmentProvided')
+                            toggleSection('followUp')
                           }}
                           style={{ cursor: 'pointer' }}
                           title="Click to select this section for Copy/PDF/Save"
                         >
                           <div className="section-title-inline">
-                            <span className="section-emoji">💉</span>
-                            <strong>Treatment Provided</strong>
-                            {isSelected('treatmentProvided') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
+                            <span className="section-emoji">📅</span>
+                            <strong>Follow-Up</strong>
+                            {isSelected('followUp') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
-                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('treatmentProvided'); }}>{isSelected('treatmentProvided') ? 'Selected' : 'Select'}</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.treatmentProvided}</p>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('followUp'); }}>{isSelected('followUp') ? 'Selected' : 'Select'}</button>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.followUp}</p>
                         </div>
                       )}
 

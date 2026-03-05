@@ -547,6 +547,16 @@
     border-left-color: #f97316;
 }
 
+.soap-section.section-clinicalExamination {
+    background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+    border-left-color: #f97316;
+}
+
+.soap-section.section-radiographicExamination {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border-left-color: #0ea5e9;
+}
+
 .soap-section.section-diagnosticProcedures {
     background: linear-gradient(135deg, #cffafe 0%, #a5f3fc 100%);
     border-left-color: #06b6d4;
@@ -557,9 +567,19 @@
     border-left-color: #ef4444;
 }
 
-.soap-section.section-educationRecommendations {
+.soap-section.section-patientEducation {
     background: linear-gradient(135deg, #ecfccb 0%, #d9f99d 100%);
     border-left-color: #84cc16;
+}
+
+.soap-section.section-treatmentPlan {
+    background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+    border-left-color: #6366f1;
+}
+
+.soap-section.section-followUp {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-left-color: #f59e0b;
 }
 
 .soap-section.section-patientResponse {

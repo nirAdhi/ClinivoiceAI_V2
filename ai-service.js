@@ -167,24 +167,16 @@ Return ONLY JSON with these exact keys:
     "psychosocial": "Marital status, occupation if mentioned"
   },
   "dentalHistory": "Previous dental visits, oral hygiene habits, concerns",
-  "intraOralExamination": "Findings from intraoral exam: teeth condition, gums, inflammation, plaque, etc.",
-  "diagnosticProcedures": "X-rays ordered, tests performed, awaiting results",
-  "assessment": "Clinical assessment and provisional diagnosis",
-  "educationRecommendations": "Oral hygiene instructions, recommendations given to patient",
-  "patientResponse": "Patient understanding and acceptance of recommendations",
-  "plan": "Next steps, follow-up, treatment planned",
-  "extraoralTMJExam": {
-    "musclePalpation": {
-      "temporalisRight": "Tenderness level",
-      "temporalisLeft": "Tenderness level",
-      "masseterRight": "Tenderness level",
-      "masseterLeft": "Tenderness level",
-      "notes": "Secondary pain notes"
-    },
-    "tmjEvaluation": "Opening measurements, deviation, excursions"
+  "clinicalExamination": {
+    "extraoral": "No abnormalities OR specific findings (facial symmetry, TMJ, lymph nodes)",
+    "intraoral": "Teeth condition, gums, inflammation, plaque, oral cavity findings"
   },
-  "treatmentProvided": "Specific procedures performed today",
-  "treatmentPlan": "Detailed plan with referrals and monitoring",
+  "radiographicExamination": "X-rays ordered, purpose, findings, pending results",
+  "assessment": "Clinical assessment and provisional diagnosis",
+  "treatmentPlan": "Next steps, procedures planned, referrals",
+  "patientEducation": "Oral hygiene instructions demonstrated, recommendations given",
+  "patientResponse": "Patient understanding and acceptance of recommendations",
+  "followUp": "Review schedule, next appointment, monitoring plan",
   "prognosis": "Expected outcome"
 }`
             : `Create SOAP note JSON from: "${shortTranscript}". Return ONLY JSON with: subjective,objective,assessment,plan`;
@@ -241,24 +233,16 @@ Return ONLY JSON with these exact keys:
                     psychosocial: '-'
                 },
                 dentalHistory: '-',
-                intraOralExamination: '-',
-                diagnosticProcedures: '-',
-                assessment: '-',
-                educationRecommendations: '-',
-                patientResponse: '-',
-                plan: '-',
-                extraoralTMJExam: {
-                    musclePalpation: {
-                        temporalisRight: '-',
-                        temporalisLeft: '-',
-                        masseterRight: '-',
-                        masseterLeft: '-',
-                        notes: '-'
-                    },
-                    tmjEvaluation: '-'
+                clinicalExamination: {
+                    extraoral: '-',
+                    intraoral: '-'
                 },
-                treatmentProvided: '-',
+                radiographicExamination: '-',
+                assessment: '-',
                 treatmentPlan: '-',
+                patientEducation: '-',
+                patientResponse: '-',
+                followUp: '-',
                 prognosis: '-'
             } : {
                 subjective: text.substring(0, 200),
@@ -651,14 +635,35 @@ Return ONLY JSON with these exact keys:
         dentalHistory = dentalMatches.slice(0, 2).map(d => d.charAt(0).toUpperCase() + d.slice(1)).join('. ') + '.';
     }
     
-    // Extract intraoral examination - return empty string if no content
-    let intraOralExamination = '';
+    // Extract clinical examination - return empty string if no content
+    let clinicalExamination = { extraoral: '', intraoral: '' };
+    
+    // Extraoral findings
+    const extraoralPatterns = [
+        /extraoral[^.]{0,100}(?:no abnormalities|normal|wnl|symmetric)/i,
+        /facial[^.]{0,60}(?:symmetry|asymmetric|swelling)/i,
+        /lymph[^.]{0,60}(?:node|palpable|normal)/i,
+        /tmj[^.]{0,60}(?:palpation|range|movement)/i
+    ];
+    const extraoralMatches = [];
+    for (const pattern of extraoralPatterns) {
+        const match = text.match(pattern);
+        if (match && !extraoralMatches.includes(match[0]) && match[0].length < 80) {
+            extraoralMatches.push(match[0]);
+        }
+    }
+    if (extraoralMatches.length > 0) {
+        clinicalExamination.extraoral = extraoralMatches.slice(0, 2).map(e => e.charAt(0).toUpperCase() + e.slice(1)).join('. ') + '.';
+    }
+    
+    // Intraoral findings
     const intraoralPatterns = [
-        /teeth[^.]{0,60}(?:healthy|good condition|decay|restoration|filling)/i,
-        /gum[^.]{0,60}(?:inflammation|bleeding|healthy|gingivitis|periodontal)/i,
-        /plaque[^.]{0,60}(?:accumulation|present|noted|buildup)/i,
-        /signs?[^.]{0,40}inflammation/i,
-        /(?:oral cavity|mouth)[^.]{0,80}/i
+        /teeth[^.]{0,60}(?:healthy|good condition|decay|restoration|filling|caries)/i,
+        /gum[^.]{0,60}(?:inflammation|bleeding|healthy|gingivitis|periodontal|pink)/i,
+        /plaque[^.]{0,60}(?:accumulation|present|noted|buildup|minimal)/i,
+        /oral[^.]{0,80}cavity[^.]{0,60}/i,
+        /mucosa[^.]{0,60}(?:normal|healthy|pink)/i,
+        /tongue[^.]{0,60}(?:normal|healthy)/i
     ];
     const intraoralMatches = [];
     for (const pattern of intraoralPatterns) {
@@ -668,27 +673,47 @@ Return ONLY JSON with these exact keys:
         }
     }
     if (intraoralMatches.length > 0) {
-        intraOralExamination = intraoralMatches.slice(0, 4).map(i => i.charAt(0).toUpperCase() + i.slice(1)).join('. ') + '.';
+        clinicalExamination.intraoral = intraoralMatches.slice(0, 4).map(i => i.charAt(0).toUpperCase() + i.slice(1)).join('. ') + '.';
     }
     
-    // Extract diagnostic procedures - return empty string if no content
-    let diagnosticProcedures = '';
-    const dxPatterns = [
-        /(?:x-ray|xray|radiograph)[^.]{0,60}(?:ordered|taken|performed|awaiting)/i,
-        /dental x-rays?[^.]{0,60}/i,
-        /radiographic[^.]{0,60}(?:evaluation|assessment|examination)/i,
-        /awaiting[^.]{0,40}(?:result|report|radiograph)/i,
-        /(?:cbct|ct scan|intraoral|panoramic)[^.]{0,40}/i
+    // Extract radiographic examination - return empty string if no content
+    let radiographicExamination = '';
+    const radioPatterns = [
+        /x-ray[^.]{0,100}(?:ordered|taken|performed|awaiting|pending)/i,
+        /radiograph[^.]{0,100}(?:evaluation|examination|ordered|pending)/i,
+        /(?:bitewing|periapical|panoramic|pa|bw)[^.]{0,80}(?:x-ray|ordered|taken)/i,
+        /purpose[^.]{0,60}(?:evaluate|assess|identify)[^.]{0,60}/i,
+        /results[^.]{0,60}pending/i
     ];
-    const dxMatches = [];
-    for (const pattern of dxPatterns) {
+    const radioMatches = [];
+    for (const pattern of radioPatterns) {
         const match = text.match(pattern);
-        if (match && !dxMatches.includes(match[0])) {
-            dxMatches.push(match[0]);
+        if (match && !radioMatches.includes(match[0]) && match[0].length < 120) {
+            radioMatches.push(match[0]);
         }
     }
-    if (dxMatches.length > 0) {
-        diagnosticProcedures = dxMatches.slice(0, 3).map(d => d.charAt(0).toUpperCase() + d.slice(1)).join('. ') + '.';
+    if (radioMatches.length > 0) {
+        radiographicExamination = radioMatches.slice(0, 3).map(r => r.charAt(0).toUpperCase() + r.slice(1)).join('. ') + '.';
+    }
+    
+    // Extract follow-up - return empty string if no content
+    let followUp = '';
+    const followUpPatterns = [
+        /follow[-\s]?up[^.]{0,100}(?:schedule|appointment|visit|review)/i,
+        /next[^.]{0,40}(?:appointment|visit|follow-up)[^.]{0,60}/i,
+        /re[-\s]?evaluate[^.]{0,60}/i,
+        /monitor[^.]{0,60}/i,
+        /review[^.]{0,60}(?:radiograph|x-ray|findings)[^.]{0,40}/i
+    ];
+    const followUpMatches = [];
+    for (const pattern of followUpPatterns) {
+        const match = text.match(pattern);
+        if (match && !followUpMatches.includes(match[0]) && match[0].length < 100) {
+            followUpMatches.push(match[0]);
+        }
+    }
+    if (followUpMatches.length > 0) {
+        followUp = followUpMatches.slice(0, 3).map(f => f.charAt(0).toUpperCase() + f.slice(1)).join('. ') + '.';
     }
     
     // Extract education/recommendations - return empty string if no content
@@ -774,24 +799,13 @@ Return ONLY JSON with these exact keys:
             psychosocial: psychosocial
         },
         dentalHistory: dentalHistory,
-        intraOralExamination: intraOralExamination,
-        diagnosticProcedures: diagnosticProcedures,
+        clinicalExamination: clinicalExamination,
+        radiographicExamination: radiographicExamination,
         assessment: diagnosis,
-        educationRecommendations: educationRecommendations,
-        patientResponse: patientResponse,
-        plan: treatmentPlan,
-        extraoralTMJExam: {
-            musclePalpation: {
-                temporalisRight: temporalisRight,
-                temporalisLeft: temporalisLeft,
-                masseterRight: masseterRight,
-                masseterLeft: masseterLeft,
-                notes: 'Muscle pain appears secondary to joint dysfunction.'
-            },
-            tmjEvaluation: tmjEvaluation
-        },
-        treatmentProvided: treatmentProvided,
         treatmentPlan: treatmentPlan,
+        patientEducation: educationRecommendations,
+        patientResponse: patientResponse,
+        followUp: followUp,
         prognosis: prognosis
     };
 }
