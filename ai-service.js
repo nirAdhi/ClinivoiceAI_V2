@@ -632,12 +632,13 @@ Return ONLY JSON with these exact keys:
         treatmentPlan = '';
     }
     
-    // Extract dental history
-    let dentalHistory = '-';
+    // Extract dental history - return empty string if no content
+    let dentalHistory = '';
     const dentalPatterns = [
-        /(?:no|last) recent dental visit/i,
-        /(?:oral hygiene|brushing|flossing)[^.]*(?:inconsistent|irregular|poor)/i,
-        /last dental visit[^.]*(?:while ago|long time|years)/i
+        /(?:no recent|last) dental visit[^.]{0,50}/i,
+        /(?:oral hygiene|brushing|flossing)[^.]{0,50}(?:inconsistent|irregular|poor)/i,
+        /last dental visit[^.]{0,50}(?:while ago|long time|years|ago)/i,
+        /(?:dental|oral) history[^.]{0,100}/i
     ];
     const dentalMatches = [];
     for (const pattern of dentalPatterns) {
@@ -647,35 +648,37 @@ Return ONLY JSON with these exact keys:
         }
     }
     if (dentalMatches.length > 0) {
-        dentalHistory = dentalMatches.slice(0, 2).join('. ') + '.';
+        dentalHistory = dentalMatches.slice(0, 2).map(d => d.charAt(0).toUpperCase() + d.slice(1)).join('. ') + '.';
     }
     
-    // Extract intraoral examination
-    let intraOralExamination = '-';
+    // Extract intraoral examination - return empty string if no content
+    let intraOralExamination = '';
     const intraoralPatterns = [
-        /teeth[^.]*(?:healthy|good condition)/i,
-        /gum[^.]*(?:inflammation|bleeding|healthy)/i,
-        /plaque[^.]*(?:accumulation|present|noted)/i,
-        /signs?[^.]*inflammation/i
+        /teeth[^.]{0,60}(?:healthy|good condition|decay|restoration|filling)/i,
+        /gum[^.]{0,60}(?:inflammation|bleeding|healthy|gingivitis|periodontal)/i,
+        /plaque[^.]{0,60}(?:accumulation|present|noted|buildup)/i,
+        /signs?[^.]{0,40}inflammation/i,
+        /(?:oral cavity|mouth)[^.]{0,80}/i
     ];
     const intraoralMatches = [];
     for (const pattern of intraoralPatterns) {
         const match = text.match(pattern);
-        if (match && !intraoralMatches.includes(match[0]) && match[0].length < 60) {
+        if (match && !intraoralMatches.includes(match[0]) && match[0].length < 100) {
             intraoralMatches.push(match[0]);
         }
     }
     if (intraoralMatches.length > 0) {
-        intraOralExamination = intraoralMatches.slice(0, 3).map(i => i.charAt(0).toUpperCase() + i.slice(1)).join('. ') + '.';
+        intraOralExamination = intraoralMatches.slice(0, 4).map(i => i.charAt(0).toUpperCase() + i.slice(1)).join('. ') + '.';
     }
     
-    // Extract diagnostic procedures
-    let diagnosticProcedures = '-';
+    // Extract diagnostic procedures - return empty string if no content
+    let diagnosticProcedures = '';
     const dxPatterns = [
-        /(?:x-ray|xray)[^.]*ordered/i,
-        /(?:x-ray|xray)[^.]*await/i,
-        /radiographic[^.]*evaluation/i,
-        /awaiting[^.]*result/i
+        /(?:x-ray|xray|radiograph)[^.]{0,60}(?:ordered|taken|performed|awaiting)/i,
+        /dental x-rays?[^.]{0,60}/i,
+        /radiographic[^.]{0,60}(?:evaluation|assessment|examination)/i,
+        /awaiting[^.]{0,40}(?:result|report|radiograph)/i,
+        /(?:cbct|ct scan|intraoral|panoramic)[^.]{0,40}/i
     ];
     const dxMatches = [];
     for (const pattern of dxPatterns) {
@@ -685,58 +688,60 @@ Return ONLY JSON with these exact keys:
         }
     }
     if (dxMatches.length > 0) {
-        diagnosticProcedures = dxMatches.slice(0, 2).map(d => d.charAt(0).toUpperCase() + d.slice(1)).join('. ') + '.';
+        diagnosticProcedures = dxMatches.slice(0, 3).map(d => d.charAt(0).toUpperCase() + d.slice(1)).join('. ') + '.';
     }
     
-    // Extract education/recommendations
-    let educationRecommendations = '-';
+    // Extract education/recommendations - return empty string if no content
+    let educationRecommendations = '';
     const eduPatterns = [
-        /(?:brushing|brush)[^.]*twice[^.]*daily/i,
-        /(?:soft|gentle)[^.]*(?:bristle|brushing)/i,
-        /flossing[^.]*(?:regular|daily)/i,
-        /replace[^.]*toothbrush[^.]*(?:3|three)[^.]*month/i,
-        /routine[^.]*dental[^.]*visit/i
+        /(?:brushing|brush)[^.]{0,80}(?:twice|daily|regular)/i,
+        /(?:soft|gentle)[^.]{0,80}(?:bristle|brushing|technique)/i,
+        /flossing[^.]{0,80}(?:regular|daily|recommended)/i,
+        /replace[^.]{0,80}toothbrush[^.]{0,40}(?:3|three)[^.]{0,40}month/i,
+        /routine[^.]{0,80}dental[^.]{0,80}visit/i,
+        /(?:hygiene|oral care)[^.]{0,80}/i,
+        /demonstrated[^.]{0,80}(?:brushing|flossing|technique)/i
     ];
     const eduMatches = [];
     for (const pattern of eduPatterns) {
         const match = text.match(pattern);
-        if (match && !eduMatches.includes(match[0]) && match[0].length < 80) {
+        if (match && !eduMatches.includes(match[0]) && match[0].length < 120) {
             eduMatches.push(match[0]);
         }
     }
     if (eduMatches.length > 0) {
-        educationRecommendations = eduMatches.slice(0, 4).map(e => '• ' + e.charAt(0).toUpperCase() + e.slice(1)).join('\n');
+        educationRecommendations = eduMatches.slice(0, 5).map(e => '• ' + e.charAt(0).toUpperCase() + e.slice(1)).join('\n');
     }
     
-    // Extract patient response
-    let patientResponse = '-';
-    const responseMatch = text.match(/(?:patient|pt)[^.]*understood[^.]*instruction/i);
-    if (responseMatch) {
-        patientResponse = responseMatch[0].charAt(0).toUpperCase() + responseMatch[0].slice(1) + '.';
-    } else if (text.match(/express[^.]*intention[^.]*improve/i)) {
+    // Extract patient response - return empty string if no content
+    let patientResponse = '';
+    const responsePatterns = [
+        /(?:patient|pt)[^.]{0,60}understood[^.]{0,40}instruction/i,
+        /(?:patient|pt)[^.]{0,60}expressed[^.]{0,40}(?:intention|agreement|understanding)/i,
+        /(?:patient|pt)[^.]{0,60}(?:agreed|accepted|compliance)[^.]{0,40}/i
+    ];
+    for (const pattern of responsePatterns) {
+        const match = text.match(pattern);
+        if (match) {
+            patientResponse = match[0].charAt(0).toUpperCase() + match[0].slice(1) + '.';
+            break;
+        }
+    }
+    if (!patientResponse && text.match(/express[^.]*intention[^.]*improve/i)) {
         patientResponse = 'Patient expressed intention to improve oral hygiene habits.';
     }
     
-    // Extract assessment (formerly diagnosis)
-    let assessment = diagnosis; // use existing diagnosis extraction
-    
-    // Extract plan (formerly treatmentPlan)
-    let plan = treatmentPlan; // use existing treatmentPlan extraction
-    
-    // Update the return object to include all new sections
-    let prognosis = '-';
-    const prognosisKeywords = ['prognosis', 'expected', 'outcome', 'improve', 'good', 'fair', 'excellent'];
+    // Extract prognosis - return empty string if no content
+    let prognosis = '';
+    const prognosisKeywords = ['prognosis', 'expected', 'outcome', 'improve', 'good', 'fair', 'excellent', 'favorable'];
     for (const kw of prognosisKeywords) {
         if (text.toLowerCase().includes(kw)) {
-            const match = text.match(new RegExp('[^.]*' + kw + '[^.]*\\.', 'i'));
+            const match = text.match(new RegExp('[^.]*' + kw + '[^.]{0,60}\.', 'i'));
             if (match) {
                 prognosis = match[0].trim();
                 break;
             }
         }
-    }
-    if (prognosis === '-') {
-        prognosis = 'Good. Condition expected to improve with physical therapy and conservative management.';
     }
     
     return {
@@ -757,10 +762,10 @@ Return ONLY JSON with these exact keys:
         dentalHistory: dentalHistory,
         intraOralExamination: intraOralExamination,
         diagnosticProcedures: diagnosticProcedures,
-        assessment: assessment,
+        assessment: diagnosis,
         educationRecommendations: educationRecommendations,
         patientResponse: patientResponse,
-        plan: plan,
+        plan: treatmentPlan,
         extraoralTMJExam: {
             musclePalpation: {
                 temporalisRight: temporalisRight,

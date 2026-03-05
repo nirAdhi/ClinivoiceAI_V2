@@ -2104,26 +2104,6 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
         </div>
       )}
 
-      {showPreviewModal && previewData && (
-        <div className="modal-overlay" onClick={() => setShowPreviewModal(false)}>
-          <div className="modal-content copy-modal" onClick={(e) => e.stopPropagation()}>
-            <h2>🔒 Preview</h2>
-            <div className="settings-section">
-              <p><strong>Patient:</strong> {previewData.patientName}</p>
-              <p><strong>Tooth/Area:</strong> {previewData.toothNumber || '-'}</p>
-              <p><strong>Dentist:</strong> {previewData.dentistName}</p>
-              <div style={{ marginTop: '12px', padding: '12px', background: 'var(--surface2)', borderRadius: '8px', maxHeight: '200px', overflow: 'auto' }}>
-                <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '13px', margin: 0 }}>{previewData.previewText}</pre>
-              </div>
-            </div>
-            <div className="note-actions">
-              <button className="btn btn-save" onClick={confirmSave}>🔒 Confirm Save</button>
-              <button className="btn btn-ghost" onClick={() => setShowPreviewModal(false)}>Edit</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {showPatientsModal && (
         <div className="modal-overlay" onClick={() => setShowPatientsModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
