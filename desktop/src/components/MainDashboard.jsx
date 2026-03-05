@@ -1189,7 +1189,7 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                   onChange={(e) => setPreviewData(prev => ({ ...prev, previewText: e.target.value }))}
                   style={{
                     width: '100%',
-                    minHeight: '300px',
+                    minHeight: '280px',
                     marginTop: '8px',
                     padding: '12px',
                     fontFamily: 'inherit',
