@@ -143,45 +143,45 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
         const modelName = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
         let text = '';
 
-        // Shorter transcript for faster processing (500 chars max)
-        const shortTranscript = transcription.substring(0, 500);
+        // Use FULL transcript for complete processing
+        const fullTranscript = transcription;
         
         const prompt = domain === 'dental' 
-            ? `You are a professional dental TMJ scribe. Create a detailed TMJ evaluation note from this transcription: "${shortTranscript}"
+            ? `You are a professional dental scribe. Create a detailed dental note from this transcription: "${fullTranscript}"
 
-Analyze the transcription carefully and extract all relevant information for each section below. Use specific details mentioned in the dictation.
+Analyze the transcription carefully and extract all relevant information for each section below. You MUST return ALL 11 sections listed below - do not omit any sections. If information is not mentioned in the transcript, return "-" or "Not discussed" for that section.
 
 Return ONLY JSON with these exact keys:
 {
   "patientInfo": {
-    "name": "Full patient name (e.g., Mike Smith)",
-    "provider": "Provider name with Dr. prefix (e.g., Dr. Gerster)",
-    "visitType": "Specific visit type (e.g., New/Returning patient – Emergency TMJ evaluation)",
-    "referralSource": "How patient was referred"
+    "name": "Full patient name",
+    "provider": "Provider name with Dr. prefix",
+    "visitType": "Specific visit type (e.g., Routine Dental Examination & Consultation, Emergency TMJ evaluation)",
+    "referralSource": "How patient was referred or 'Self-referred'"
   },
-  "chiefComplaint": "Patient's main complaint in quotes (e.g., 'Jaw locked on the right side with severe pain for 2 days.')",
-  "historyOfPresentIllness": "Detailed HPI as bullet points:\n• Duration (e.g., 2 days)\n• Severity (e.g., pain level 9-10/10)\n• History of similar episodes\n• Symptoms (difficulty opening, popping, etc.)\n• Associated symptoms (headaches, migraines)\n• Aggravating/relieving factors",
+  "chiefComplaint": "Patient's main complaint - REQUIRED",
+  "historyOfPresentIllness": "Detailed HPI with duration, symptoms, aggravating factors - REQUIRED",
   "medicalHistory": {
-    "allergies": "List allergies or 'No known allergies'",
-    "disorders": "List any systemic disorders or 'No reported neurological, cardiovascular, GI, GU, immune, integumentary, musculoskeletal, or hematologic disorders'",
-    "psychosocial": "Marital status, occupation, education (e.g., Divorced. Full-time professor. College educated.)"
+    "allergies": "List allergies or 'No known allergies / Not discussed' - REQUIRED",
+    "disorders": "List systemic disorders or 'No concerns mentioned' - REQUIRED",
+    "psychosocial": "Marital status, occupation if mentioned, or '-' - REQUIRED"
   },
-  "extraoralTMJExam": {
-    "musclePalpation": {
-      "temporalisRight": "Tenderness level with pain score if mentioned",
-      "temporalisLeft": "Tenderness level",
-      "masseterRight": "Tenderness level",
-      "masseterLeft": "Tenderness level",
-      "notes": "Secondary pain notes"
-    },
-    "tmjEvaluation": "Opening measurements, deviation, excursions, disc-condyle findings"
+  "dentalHistory": "Previous dental visits, oral hygiene habits, concerns, or '-' - REQUIRED",
+  "clinicalExamination": {
+    "extraoral": "Facial symmetry, TMJ, lymph nodes findings, or 'No abnormalities noted' - REQUIRED",
+    "intraoral": "Teeth condition, gums, inflammation, plaque, oral cavity findings - REQUIRED"
   },
-  "diagnosis": "Provisional diagnosis as bullet points:\n• Primary condition\n• Secondary conditions",
-  "treatmentProvided": "Specific procedures performed in office",
-  "treatmentPlan": "Referrals with frequency and duration, monitoring plan, re-evaluation criteria",
-  "prognosis": "Expected outcome (e.g., Good. Condition expected to improve with physical therapy and conservative management.)"
-}`
-            : `Create SOAP note JSON from: "${shortTranscript}". Return ONLY JSON with: subjective,objective,assessment,plan`;
+  "radiographicExamination": "X-rays ordered, purpose, findings, pending results, or '-' - REQUIRED",
+  "assessment": "Clinical assessment and provisional diagnosis - REQUIRED",
+  "treatmentPlan": "Next steps, procedures planned, referrals, or '-' - REQUIRED",
+  "patientEducation": "Oral hygiene instructions, recommendations given, or '-' - REQUIRED",
+  "patientResponse": "Patient understanding and acceptance, or '-' - REQUIRED",
+  "followUp": "Review schedule, next appointment, monitoring plan, or '-' - REQUIRED",
+  "prognosis": "Expected outcome, or '-' - REQUIRED"
+}
+
+IMPORTANT: Return ALL 13 keys shown above. Do not skip any sections. Use "-" for sections where no information was found in the transcript.`
+            : `Create SOAP note JSON from: "${fullTranscript}". Return ONLY JSON with: subjective,objective,assessment,plan`;
 
         console.log('📤 Sending to Gemini (model:', modelName, ')...');
         const model = genAI.getGenerativeModel({ model: modelName });
@@ -224,29 +224,27 @@ Return ONLY JSON with these exact keys:
                 patientInfo: {
                     name: pMatch ? pMatch[1] : '[Patient Name]',
                     provider: dMatch ? 'Dr. ' + dMatch[1] : '[Provider Name]',
-                    visitType: 'New/Returning patient – Emergency TMJ evaluation',
+                    visitType: 'Routine Dental Examination & Consultation',
                     referralSource: 'Self-referred'
                 },
                 chiefComplaint: text.substring(0, 300) || '-',
                 historyOfPresentIllness: '-',
                 medicalHistory: {
-                    allergies: 'None reported',
-                    disorders: 'None reported',
+                    allergies: 'Not discussed/No concerns mentioned',
+                    disorders: 'No concerns mentioned',
                     psychosocial: '-'
                 },
-                extraoralTMJExam: {
-                    musclePalpation: {
-                        temporalisRight: '-',
-                        temporalisLeft: '-',
-                        masseterRight: '-',
-                        masseterLeft: '-',
-                        notes: '-'
-                    },
-                    tmjEvaluation: '-'
+                dentalHistory: '-',
+                clinicalExamination: {
+                    extraoral: '-',
+                    intraoral: '-'
                 },
-                diagnosis: '-',
-                treatmentProvided: '-',
+                radiographicExamination: '-',
+                assessment: '-',
                 treatmentPlan: '-',
+                patientEducation: '-',
+                patientResponse: '-',
+                followUp: '-',
                 prognosis: '-'
             } : {
                 subjective: text.substring(0, 200),
@@ -436,189 +434,355 @@ Return ONLY JSON with these exact keys:
         psychosocial = psychosocialFacts.join('. ') + '.';
     }
     
-    // Extract TMJ exam details - improved patterns for dictation
-    let temporalisRight = '-';
-    let temporalisLeft = '-';
-    let masseterRight = '-';
-    let masseterLeft = '-';
+    // Extract TMJ exam details - extract SHORT key findings only, not full transcript
+    let temporalisRight = '';
+    let temporalisLeft = '';
+    let masseterRight = '';
+    let masseterLeft = '';
     
-    // Look for temporalis mentions with side and tenderness info
-    const temporalisPatterns = [
-        /temporalis[^.]*?right[^.]*?(tender|pain|\d+)[^.]*\./gi,
-        /right[^.]*?temporalis[^.]*?(tender|pain|\d+)[^.]*\./gi,
-        /temporalis[^.]*?(right|left)[^.]*\./gi
-    ];
-    
-    for (const pattern of temporalisPatterns) {
-        const matches = text.match(pattern) || [];
-        for (const match of matches) {
-            const cleanMatch = match.replace(/\s+/g, ' ').trim();
-            if (match.toLowerCase().includes('right')) {
-                temporalisRight = cleanMatch;
-            } else if (match.toLowerCase().includes('left')) {
-                temporalisLeft = cleanMatch;
+    // Extract just the key finding (tender/normal + pain score if mentioned)
+    const extractMuscleFinding = (text, muscle, side) => {
+        // Look for patterns like "temporalis right tender 5/10" or "right temporalis normal"
+        const patterns = [
+            new RegExp(`${muscle}[^.]{0,30}?${side}[^.]{0,30}?(tender|pain|sore|normal|wnl)[^.]{0,20}?(\\d+/10)?`, 'i'),
+            new RegExp(`${side}[^.]{0,30}?${muscle}[^.]{0,30}?(tender|pain|sore|normal|wnl)[^.]{0,20}?(\\d+/10)?`, 'i'),
+            new RegExp(`${side}[^.]{0,20}?${muscle}[^.]{0,20}?(\\d+/10)`, 'i')
+        ];
+        
+        for (const pattern of patterns) {
+            const match = text.match(pattern);
+            if (match) {
+                let finding = match[0].replace(/\s+/g, ' ').trim();
+                // Clean up - extract just the key phrase (max 50 chars)
+                finding = finding.replace(new RegExp(`.*${muscle}`, 'i'), muscle)
+                                .replace(new RegExp(`.*${side}`, 'i'), side + ' ' + finding.match(new RegExp(`${side}(.{0,40})`, 'i'))?.[1] || '')
+                                .trim();
+                // Limit length
+                if (finding.length > 50) {
+                    finding = finding.substring(0, 50).replace(/\s+\S*$/, '') + '...';
+                }
+                // Capitalize first letter
+                finding = finding.charAt(0).toUpperCase() + finding.slice(1);
+                return finding;
             }
+        }
+        
+        // Default if nothing found
+        return '';
+    };
+    
+    temporalisRight = extractMuscleFinding(text, 'temporalis', 'right') || '';
+    temporalisLeft = extractMuscleFinding(text, 'temporalis', 'left') || '';
+    masseterRight = extractMuscleFinding(text, 'masseter', 'right') || '';
+    masseterLeft = extractMuscleFinding(text, 'masseter', 'left') || '';
+    
+    // If still empty, look for any tenderness mention with pain scores
+    const painScoreMatch = text.match(/(\d+)\s*\/\s*10/g);
+    if (painScoreMatch && !temporalisRight && !temporalisLeft && !masseterRight && !masseterLeft) {
+        // Check context around pain scores
+        const contextMatch = text.match(/(?:temporalis|masseter)[^.]{0,50}?\d+\/10/gi);
+        if (contextMatch) {
+            const ctx = contextMatch[0].toLowerCase();
+            if (ctx.includes('right') && ctx.includes('temporalis')) temporalisRight = `Tender ${painScoreMatch[0]}`;
+            if (ctx.includes('left') && ctx.includes('temporalis')) temporalisLeft = `Tender ${painScoreMatch[0]}`;
+            if (ctx.includes('right') && ctx.includes('masseter')) masseterRight = `Tender ${painScoreMatch[0]}`;
+            if (ctx.includes('left') && ctx.includes('masseter')) masseterLeft = `Tender ${painScoreMatch[0]}`;
         }
     }
     
-    // Look for masseter mentions with side and tenderness info
-    const masseterPatterns = [
-        /masseter[^.]*?right[^.]*?(tender|pain|\d+)[^.]*\./gi,
-        /right[^.]*?masseter[^.]*?(tender|pain|\d+)[^.]*\./gi,
-        /masseter[^.]*?(right|left)[^.]*\./gi
-    ];
+    // Extract TMJ evaluation - short findings only
+    let tmjEvaluation = '';
+    const tmjFindings = [];
     
-    for (const pattern of masseterPatterns) {
-        const matches = text.match(pattern) || [];
-        for (const match of matches) {
-            const cleanMatch = match.replace(/\s+/g, ' ').trim();
-            if (match.toLowerCase().includes('right')) {
-                masseterRight = cleanMatch;
-            } else if (match.toLowerCase().includes('left')) {
-                masseterLeft = cleanMatch;
-            }
-        }
-    }
-    
-    // Look for tenderness mentions with pain scores
-    const tendernessPatterns = [
-        /tender[^.]*?(?:right|left)?[^.]*?(?:\d+[-/]?\d*)[^.]*\./gi,
-        /(?:right|left)[^.]*?tender[^.]*?(?:\d+[-/]?\d*)[^.]*\./gi,
-        /(?:three|four|five|six)[^.,]*(?:to|out of)[^.,]*ten/gi
-    ];
-    
-    for (const pattern of tendernessPatterns) {
-        const matches = text.match(pattern) || [];
-        for (const match of matches) {
-            if (match.toLowerCase().includes('right') && temporalisRight === '-') {
-                temporalisRight = 'Tender (' + match.replace(/\s+/g, ' ').trim() + ')';
-            }
-            if (match.toLowerCase().includes('left') && temporalisLeft === '-') {
-                temporalisLeft = 'Tender (' + match.replace(/\s+/g, ' ').trim() + ')';
-            }
-        }
-    }
-    
-    // Extract TMJ evaluation - look for opening, deviation, disc-condyle
-    let tmjEvaluation = '-';
+    // Look for specific TMJ findings (short phrases)
     const tmjPatterns = [
-        /limited[^.]*opening[^.]*\./gi,
-        /deviation[^.]*right[^.]*\./gi,
-        /disc.condyle[^.]*incoordination[^.]*\./gi,
-        /opening[^.]*measurement[^.]*\./gi,
-        /lateral[^.]*excursion[^.]*\./gi
+        { pattern: /limited[^.]{0,30}opening/gi, label: 'Limited opening' },
+        { pattern: /opening[^.]{0,20}(\d+)[^.]{0,20}mm/gi, label: 'Opening' },
+        { pattern: /deviation[^.]{0,30}(right|left)/gi, label: 'Deviation' },
+        { pattern: /disc[^.]{0,30}incoordination/gi, label: 'Disc-condyle incoordination' },
+        { pattern: /clicking|crepitus|popping/gi, label: 'Joint sounds' },
+        { pattern: /lateral[^.]{0,20}excursion[^.]{0,20}(\d+)[^.]{0,20}mm/gi, label: 'Lateral excursion' }
     ];
     
-    const tmjMatches = [];
-    for (const pattern of tmjPatterns) {
-        const matches = text.match(pattern) || [];
-        tmjMatches.push(...matches);
+    for (const { pattern, label } of tmjPatterns) {
+        const matches = text.match(pattern);
+        if (matches) {
+            const clean = matches[0].replace(/\s+/g, ' ').trim();
+            if (clean.length < 60 && !tmjFindings.includes(clean)) {
+                tmjFindings.push(clean);
+            }
+        }
     }
     
-    // Also look for general TMJ findings
-    const generalTmjMatch = text.match(/(?:tmj|joint)[^.]*(?:evaluation|exam|findings)[^.]*?(?:show|reveal|indicate)?[^.]*\./gi);
-    if (generalTmjMatch) {
-        tmjMatches.push(...generalTmjMatch);
+    if (tmjFindings.length > 0) {
+        tmjEvaluation = tmjFindings.slice(0, 3).join('. ') + '.';
     }
     
-    if (tmjMatches.length > 0) {
-        tmjEvaluation = tmjMatches.map(m => m.replace(/\s+/g, ' ').trim()).join(' ');
-    }
+    // Extract diagnosis - short findings only
+    let diagnosis = '';
+    const diagnosisFindings = [];
     
-    // Extract diagnosis with better patterns
-    let diagnosis = '-';
-    const diagnosisPatterns = [
-        /(?:right|left)?\s*tmj\s*disc.condyle\s*incoordination/gi,
-        /tmj\s*locking/gi,
-        /myofascial\s*pain/gi,
-        /acute\s*tmj/gi,
-        /provisional\s*diagnosis[^.]*\./gi
+    // Look for specific diagnosis terms (short phrases, not full sentences)
+    const diagnosisTerms = [
+        { term: /tmj\s+disc[^.]{0,20}incoordination/gi, label: 'TMJ disc-condyle incoordination' },
+        { term: /myofascial[^.]{0,20}pain/gi, label: 'Myofascial pain' },
+        { term: /(?:acute|chronic)[^.]{0,10}tmj/gi, label: 'TMJ disorder' },
+        { term: /internal[^.]{0,10}derangement/gi, label: 'Internal derangement' },
+        { term: /disc[^.]{0,10}displacement/gi, label: 'Disc displacement' },
+        { term: /(closed|open)[^.]{0,10}lock/gi, label: 'Lock' },
+        { term: /bruxism|clench|grind/gi, label: 'Bruxism' },
+        { term: /joint[^.]{0,15}dysfunction/gi, label: 'Joint dysfunction' }
     ];
     
-    const diagnosisMatches = [];
-    for (const pattern of diagnosisPatterns) {
-        const matches = text.match(pattern) || [];
-        for (const match of matches) {
+    for (const { term, label } of diagnosisTerms) {
+        const matches = text.match(term);
+        if (matches) {
+            const clean = matches[0].replace(/\s+/g, ' ').trim();
+            if (clean.length < 50 && !diagnosisFindings.includes(clean)) {
+                diagnosisFindings.push(clean);
+            }
+        }
+    }
+    
+    // Look for side-specific mentions (RT/LT/bilateral)
+    const sideMatch = text.match(/(?:right|left|bilateral|rt|lt)[^.]{0,30}(?:tmj|joint|disc)/gi);
+    if (sideMatch) {
+        for (const match of sideMatch.slice(0, 2)) {
             const clean = match.replace(/\s+/g, ' ').trim();
-            if (!diagnosisMatches.includes(clean)) {
-                diagnosisMatches.push(clean);
+            if (clean.length < 40 && !diagnosisFindings.includes(clean)) {
+                diagnosisFindings.push(clean);
             }
         }
     }
     
-    // Look for "diagnosis is" or "diagnosed with" patterns
-    const diagnosisStatement = text.match(/(?:diagnosis|diagnosed)(?:\s+is|\s+with)?[:\s]+([^.]+)/gi);
-    if (diagnosisStatement) {
-        for (const stmt of diagnosisStatement) {
-            const clean = stmt.replace(/\s+/g, ' ').trim();
-            if (!diagnosisMatches.includes(clean)) {
-                diagnosisMatches.push(clean);
-            }
-        }
-    }
-    
-    if (diagnosisMatches.length > 0) {
-        diagnosis = '• ' + diagnosisMatches.join('\n• ');
+    if (diagnosisFindings.length > 0) {
+        diagnosis = diagnosisFindings.slice(0, 3).map(d => '• ' + d.charAt(0).toUpperCase() + d.slice(1)).join('\n');
     } else {
-        diagnosis = '- Diagnosis pending full evaluation';
+        diagnosis = '';
     }
     
-    // Extract treatment provided
-    let treatmentProvided = '-';
-    const treatmentPatterns = [
-        /manual\s*tmj\s*manipulation[^.]*\./gi,
-        /manipulation\s*performed[^.]*\./gi,
-        /tmj\s*reduction[^.]*\./gi,
-        /immediate\s*improvement[^.]*\./gi
+    // Extract treatment provided - short findings only
+    let treatmentProvided = '';
+    const treatmentFindings = [];
+    
+    // Look for specific treatment terms
+    const treatmentTerms = [
+        { term: /manual[^.]{0,20}(?:tmj|manipulation|mobilization)/gi, label: 'Manual TMJ manipulation/mobilization' },
+        { term: /manipulation[^.]{0,20}(?:performed|done|completed)/gi, label: 'Manipulation performed' },
+        { term: /tmj[^.]{0,20}reduction/gi, label: 'TMJ reduction' },
+        { term: /occlusal[^.]{0,20}splint|night[^.]{0,20}guard/gi, label: 'Splint/appliance adjustment' },
+        { term: /patient[^.]{0,20}(?:tolerated|responded|improved)/gi, label: 'Patient tolerated well' }
     ];
     
-    for (const pattern of treatmentPatterns) {
+    for (const { term, label } of treatmentTerms) {
+        const matches = text.match(term);
+        if (matches) {
+            const clean = matches[0].replace(/\s+/g, ' ').trim();
+            if (clean.length < 50 && !treatmentFindings.includes(clean)) {
+                treatmentFindings.push(clean);
+            }
+        }
+    }
+    
+    if (treatmentFindings.length > 0) {
+        treatmentProvided = treatmentFindings.slice(0, 2).map(t => '• ' + t.charAt(0).toUpperCase() + t.slice(1)).join('\n');
+    } else {
+        treatmentProvided = '';
+    }
+    
+    // Extract treatment plan - short findings only
+    let treatmentPlan = '';
+    const planFindings = [];
+    
+    const planTerms = [
+        { term: /refer[^.]{0,30}physical[^.]{0,20}therapy/gi, label: 'Refer to physical therapy' },
+        { term: /physical[^.]{0,20}therapy[^.]{0,20}(?:2x|twice|weekly)/gi, label: 'Physical therapy' },
+        { term: /monitor[^.]{0,20}symptoms/gi, label: 'Monitor symptoms' },
+        { term: /follow[^.]{0,20}(?:up|visit|appointment)/gi, label: 'Follow up' },
+        { term: /re[\s-]?evaluation/gi, label: 'Re-evaluation' }
+    ];
+    
+    for (const { term, label } of planTerms) {
+        const matches = text.match(term);
+        if (matches) {
+            const clean = matches[0].replace(/\s+/g, ' ').trim();
+            if (clean.length < 50 && !planFindings.includes(clean)) {
+                planFindings.push(clean);
+            }
+        }
+    }
+    
+    if (planFindings.length > 0) {
+        treatmentPlan = planFindings.slice(0, 3).map(p => '• ' + p.charAt(0).toUpperCase() + p.slice(1)).join('\n');
+    } else {
+        treatmentPlan = '';
+    }
+    
+    // Extract dental history - return empty string if no content
+    let dentalHistory = '';
+    const dentalPatterns = [
+        /(?:no recent|last) dental visit[^.]{0,50}/i,
+        /(?:oral hygiene|brushing|flossing)[^.]{0,50}(?:inconsistent|irregular|poor)/i,
+        /last dental visit[^.]{0,50}(?:while ago|long time|years|ago)/i,
+        /(?:dental|oral) history[^.]{0,100}/i
+    ];
+    const dentalMatches = [];
+    for (const pattern of dentalPatterns) {
+        const match = text.match(pattern);
+        if (match && !dentalMatches.includes(match[0])) {
+            dentalMatches.push(match[0]);
+        }
+    }
+    if (dentalMatches.length > 0) {
+        dentalHistory = dentalMatches.slice(0, 2).map(d => d.charAt(0).toUpperCase() + d.slice(1)).join('. ') + '.';
+    }
+    
+    // Extract clinical examination - return empty string if no content
+    let clinicalExamination = { extraoral: '', intraoral: '' };
+    
+    // Extraoral findings
+    const extraoralPatterns = [
+        /extraoral[^.]{0,100}(?:no abnormalities|normal|wnl|symmetric)/i,
+        /facial[^.]{0,60}(?:symmetry|asymmetric|swelling)/i,
+        /lymph[^.]{0,60}(?:node|palpable|normal)/i,
+        /tmj[^.]{0,60}(?:palpation|range|movement)/i
+    ];
+    const extraoralMatches = [];
+    for (const pattern of extraoralPatterns) {
+        const match = text.match(pattern);
+        if (match && !extraoralMatches.includes(match[0]) && match[0].length < 80) {
+            extraoralMatches.push(match[0]);
+        }
+    }
+    if (extraoralMatches.length > 0) {
+        clinicalExamination.extraoral = extraoralMatches.slice(0, 2).map(e => e.charAt(0).toUpperCase() + e.slice(1)).join('. ') + '.';
+    }
+    
+    // Intraoral findings
+    const intraoralPatterns = [
+        /teeth[^.]{0,60}(?:healthy|good condition|decay|restoration|filling|caries)/i,
+        /gum[^.]{0,60}(?:inflammation|bleeding|healthy|gingivitis|periodontal|pink)/i,
+        /plaque[^.]{0,60}(?:accumulation|present|noted|buildup|minimal)/i,
+        /oral[^.]{0,80}cavity[^.]{0,60}/i,
+        /mucosa[^.]{0,60}(?:normal|healthy|pink)/i,
+        /tongue[^.]{0,60}(?:normal|healthy)/i
+    ];
+    const intraoralMatches = [];
+    for (const pattern of intraoralPatterns) {
+        const match = text.match(pattern);
+        if (match && !intraoralMatches.includes(match[0]) && match[0].length < 100) {
+            intraoralMatches.push(match[0]);
+        }
+    }
+    if (intraoralMatches.length > 0) {
+        clinicalExamination.intraoral = intraoralMatches.slice(0, 4).map(i => i.charAt(0).toUpperCase() + i.slice(1)).join('. ') + '.';
+    }
+    
+    // Extract radiographic examination - return empty string if no content
+    let radiographicExamination = '';
+    const radioPatterns = [
+        /x-ray[^.]{0,100}(?:ordered|taken|performed|awaiting|pending)/i,
+        /radiograph[^.]{0,100}(?:evaluation|examination|ordered|pending)/i,
+        /(?:bitewing|periapical|panoramic|pa|bw)[^.]{0,80}(?:x-ray|ordered|taken)/i,
+        /purpose[^.]{0,60}(?:evaluate|assess|identify)[^.]{0,60}/i,
+        /results[^.]{0,60}pending/i
+    ];
+    const radioMatches = [];
+    for (const pattern of radioPatterns) {
+        const match = text.match(pattern);
+        if (match && !radioMatches.includes(match[0]) && match[0].length < 120) {
+            radioMatches.push(match[0]);
+        }
+    }
+    if (radioMatches.length > 0) {
+        radiographicExamination = radioMatches.slice(0, 3).map(r => r.charAt(0).toUpperCase() + r.slice(1)).join('. ') + '.';
+    }
+    
+    // Extract follow-up - return empty string if no content
+    let followUp = '';
+    const followUpPatterns = [
+        /follow[-\s]?up[^.]{0,100}(?:schedule|appointment|visit|review)/i,
+        /next[^.]{0,40}(?:appointment|visit|follow-up)[^.]{0,60}/i,
+        /re[-\s]?evaluate[^.]{0,60}/i,
+        /monitor[^.]{0,60}/i,
+        /review[^.]{0,60}(?:radiograph|x-ray|findings)[^.]{0,40}/i
+    ];
+    const followUpMatches = [];
+    for (const pattern of followUpPatterns) {
+        const match = text.match(pattern);
+        if (match && !followUpMatches.includes(match[0]) && match[0].length < 100) {
+            followUpMatches.push(match[0]);
+        }
+    }
+    if (followUpMatches.length > 0) {
+        followUp = followUpMatches.slice(0, 3).map(f => f.charAt(0).toUpperCase() + f.slice(1)).join('. ') + '.';
+    }
+    
+    // Extract education/recommendations - return empty string if no content
+    let educationRecommendations = '';
+    const eduPatterns = [
+        /(?:brushing|brush)[^.]{0,80}(?:twice|daily|regular)/i,
+        /(?:soft|gentle)[^.]{0,80}(?:bristle|brushing|technique)/i,
+        /flossing[^.]{0,80}(?:regular|daily|recommended)/i,
+        /replace[^.]{0,80}toothbrush[^.]{0,40}(?:3|three)[^.]{0,40}month/i,
+        /routine[^.]{0,80}dental[^.]{0,80}visit/i,
+        /(?:hygiene|oral care)[^.]{0,80}/i,
+        /demonstrated[^.]{0,80}(?:brushing|flossing|technique)/i
+    ];
+    const eduMatches = [];
+    for (const pattern of eduPatterns) {
+        const match = text.match(pattern);
+        if (match && !eduMatches.includes(match[0]) && match[0].length < 120) {
+            eduMatches.push(match[0]);
+        }
+    }
+    if (eduMatches.length > 0) {
+        educationRecommendations = eduMatches.slice(0, 5).map(e => '• ' + e.charAt(0).toUpperCase() + e.slice(1)).join('\n');
+    }
+    
+    // Extract patient response - return empty string if no content
+    let patientResponse = '';
+    const responsePatterns = [
+        /(?:patient|pt)[^.]{0,60}understood[^.]{0,40}instruction/i,
+        /(?:patient|pt)[^.]{0,60}expressed[^.]{0,40}(?:intention|agreement|understanding)/i,
+        /(?:patient|pt)[^.]{0,60}(?:agreed|accepted|compliance)[^.]{0,40}/i
+    ];
+    for (const pattern of responsePatterns) {
         const match = text.match(pattern);
         if (match) {
-            treatmentProvided = match[0].replace(/\s+/g, ' ').trim();
+            patientResponse = match[0].charAt(0).toUpperCase() + match[0].slice(1) + '.';
             break;
         }
     }
+    if (!patientResponse && text.match(/express[^.]*intention[^.]*improve/i)) {
+        patientResponse = 'Patient expressed intention to improve oral hygiene habits.';
+    }
     
-    // Extract treatment plan with better patterns
-    let treatmentPlan = '- Follow up as needed';
-    const planPatterns = [
-        /refer\s*to\s*physical\s*therapy[^.]*\./gi,
-        /physical\s*therapy[^.]*?(?:2x|twice)[^.]*\./gi,
-        /(?:2x|twice)\s*a?\s*week[^.]*\./gi,
-        /monitor\s*symptoms[^.]*\./gi,
-        /re.evaluation[^.]*\./gi
+    // Extract prognosis - return empty string if no content
+    let prognosis = '';
+    const prognosisPatterns = [
+        /prognosis\s+(?:is\s+)?([^.]+\.(?:\s*Expected[^.]+\.)?)/i,
+        /expected\s+(?:to|outcome|recovery)[^.]+\./i,
+        /(?:good|fair|excellent|guarded)\s+prognosis[\s,]+[^.]+\./i
     ];
-    
-    const planMatches = [];
-    for (const pattern of planPatterns) {
-        const matches = text.match(pattern) || [];
-        for (const match of matches) {
-            const clean = match.replace(/\s+/g, ' ').trim();
-            if (!planMatches.includes(clean)) {
-                planMatches.push(clean);
+    for (const pattern of prognosisPatterns) {
+        const match = text.match(pattern);
+        if (match) {
+            prognosis = match[1] || match[0];
+            prognosis = prognosis.trim().replace(/^[:;\s]+/, '').replace(/\s+/g, ' ');
+            // Limit to reasonable length
+            if (prognosis.length > 200) {
+                prognosis = prognosis.substring(0, 200) + '...';
             }
+            break;
         }
     }
-    
-    if (planMatches.length > 0) {
-        treatmentPlan = '• ' + planMatches.join('\n• ');
-    }
-    
-    // Extract prognosis
-    let prognosis = '-';
-    const prognosisKeywords = ['prognosis', 'expected', 'outcome', 'improve', 'good', 'fair', 'excellent'];
-    for (const kw of prognosisKeywords) {
-        if (text.toLowerCase().includes(kw)) {
-            const match = text.match(new RegExp('[^.]*' + kw + '[^.]*\\.', 'i'));
-            if (match) {
-                prognosis = match[0].trim();
-                break;
-            }
+    // If no specific prognosis found, look for outcome-related phrases
+    if (!prognosis) {
+        const outcomeMatch = text.match(/(?:should|will)\s+(?:improve|resolve|heal|recover)[^.]+\./i);
+        if (outcomeMatch) {
+            prognosis = outcomeMatch[0].trim();
         }
-    }
-    if (prognosis === '-') {
-        prognosis = 'Good. Condition expected to improve with physical therapy and conservative management.';
     }
     
     return {
@@ -626,7 +790,7 @@ Return ONLY JSON with these exact keys:
         patientInfo: {
             name: patientName,
             provider: providerName,
-            visitType: 'New/Returning patient – Emergency TMJ evaluation',
+            visitType: 'Routine Dental Examination & Consultation',
             referralSource: 'Self-referred'
         },
         chiefComplaint: chiefComplaint,
@@ -636,19 +800,14 @@ Return ONLY JSON with these exact keys:
             disorders: disorders,
             psychosocial: psychosocial
         },
-        extraoralTMJExam: {
-            musclePalpation: {
-                temporalisRight: temporalisRight,
-                temporalisLeft: temporalisLeft,
-                masseterRight: masseterRight,
-                masseterLeft: masseterLeft,
-                notes: 'Muscle pain appears secondary to joint dysfunction.'
-            },
-            tmjEvaluation: tmjEvaluation
-        },
-        diagnosis: diagnosis,
-        treatmentProvided: treatmentProvided,
+        dentalHistory: dentalHistory,
+        clinicalExamination: clinicalExamination,
+        radiographicExamination: radiographicExamination,
+        assessment: diagnosis,
         treatmentPlan: treatmentPlan,
+        patientEducation: educationRecommendations,
+        patientResponse: patientResponse,
+        followUp: followUp,
         prognosis: prognosis
     };
 }
