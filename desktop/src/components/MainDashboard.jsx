@@ -489,7 +489,10 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
   const isSelected = (key) => selectedSections.has(key)
   const selectAllSections = () => {
     const keys = new Set([
-      'header', 'chiefComplaint', 'historyOfPresentIllness', 'medicalHistory', 'dentalHistory', 'intraOralExamination', 'diagnosticProcedures', 'assessment', 'educationRecommendations', 'patientResponse', 'plan'
+      'header', 'chiefComplaint', 'historyOfPresentIllness', 'medicalHistory', 
+      'dentalHistory', 'intraOralExamination', 'extraoralTMJExam', 'diagnosticProcedures', 
+      'assessment', 'educationRecommendations', 'patientResponse', 'plan', 
+      'treatmentProvided', 'prognosis'
     ])
     setSelectedSections(keys)
   }
@@ -1667,7 +1670,11 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                 <div className="panel-body">
                   <div className="note-actions">
                     <button className="btn btn-generate" onClick={handleGenerate} disabled={!transcription || isGenerating}>
-                      ✨ Generate <span className="shortcut-hint">⌘G</span>
+                      {isGenerating ? (
+                        <><span className="loading-spinner"></span>Processing...</>
+                      ) : (
+                        <>✨ Generate <span className="shortcut-hint">⌘G</span></>
+                      )}
                     </button>
                     <button className="btn btn-copy" onClick={copyNoteToClipboard} disabled={!aiNote}>
                       📋 Copy <span className="shortcut-hint">⌘C</span>
@@ -1697,22 +1704,20 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                       {/* Chief Complaint */}
                       {aiNote.chiefComplaint && (
                         <div 
-                          className="soap-section section-chiefComplaint" 
+                          className={`soap-section section-chiefComplaint ${isSelected('chiefComplaint') ? 'selected' : ''}`}
                           onClick={(e) => {
-                            // Don't copy if clicking the copy button
                             if (e.target.closest('.copy-btn')) return
-                            const text = typeof aiNote.chiefComplaint === 'object' ? JSON.stringify(aiNote.chiefComplaint, null, 2) : aiNote.chiefComplaint
-                            navigator.clipboard.writeText(text)
-                            pushToast('Chief Complaint section copied', 'success')
+                            toggleSection('chiefComplaint')
                           }}
                           style={{ cursor: 'pointer' }}
-                          title="Click anywhere to copy this section"
+                          title="Click to select this section for Copy/PDF/Save"
                         >
                           <div className="section-title-inline">
                             <span className="section-emoji">🦷</span>
                             <strong>Chief Complaint (CC)</strong>
+                            {isSelected('chiefComplaint') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
-                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = typeof aiNote.chiefComplaint === 'object' ? JSON.stringify(aiNote.chiefComplaint, null, 2) : aiNote.chiefComplaint; navigator.clipboard.writeText(text); pushToast('Chief Complaint copied', 'success'); }}>Copy me</button>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('chiefComplaint'); }}>{isSelected('chiefComplaint') ? 'Selected' : 'Select'}</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.chiefComplaint}</p>
                         </div>
                       )}
@@ -1720,21 +1725,20 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                       {/* History of Present Illness */}
                       {aiNote.historyOfPresentIllness && (
                         <div 
-                          className="soap-section section-historyOfPresentIllness"
+                          className={`soap-section section-historyOfPresentIllness ${isSelected('historyOfPresentIllness') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
-                            const text = typeof aiNote.historyOfPresentIllness === 'object' ? JSON.stringify(aiNote.historyOfPresentIllness, null, 2) : aiNote.historyOfPresentIllness
-                            navigator.clipboard.writeText(text)
-                            pushToast('HPI section copied', 'success')
+                            toggleSection('historyOfPresentIllness')
                           }}
                           style={{ cursor: 'pointer' }}
-                          title="Click anywhere to copy this section"
+                          title="Click to select this section for Copy/PDF/Save"
                         >
                           <div className="section-title-inline">
                             <span className="section-emoji">📋</span>
                             <strong>History of Present Illness (HPI)</strong>
+                            {isSelected('historyOfPresentIllness') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
-                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = typeof aiNote.historyOfPresentIllness === 'object' ? JSON.stringify(aiNote.historyOfPresentIllness, null, 2) : aiNote.historyOfPresentIllness; navigator.clipboard.writeText(text); pushToast('HPI copied', 'success'); }}>Copy me</button>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('historyOfPresentIllness'); }}>{isSelected('historyOfPresentIllness') ? 'Selected' : 'Select'}</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.historyOfPresentIllness}</p>
                         </div>
                       )}
@@ -1742,21 +1746,20 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                       {/* Medical History */}
                       {aiNote.medicalHistory && (
                         <div 
-                          className="soap-section section-medicalHistory"
+                          className={`soap-section section-medicalHistory ${isSelected('medicalHistory') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
-                            const text = typeof aiNote.medicalHistory === 'object' ? JSON.stringify(aiNote.medicalHistory, null, 2) : aiNote.medicalHistory
-                            navigator.clipboard.writeText(text)
-                            pushToast('Medical History section copied', 'success')
+                            toggleSection('medicalHistory')
                           }}
                           style={{ cursor: 'pointer' }}
-                          title="Click anywhere to copy this section"
+                          title="Click to select this section for Copy/PDF/Save"
                         >
                           <div className="section-title-inline">
                             <span className="section-emoji">⚕️</span>
                             <strong>Medical History</strong>
+                            {isSelected('medicalHistory') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
-                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = typeof aiNote.medicalHistory === 'object' ? JSON.stringify(aiNote.medicalHistory, null, 2) : aiNote.medicalHistory; navigator.clipboard.writeText(text); pushToast('Medical History copied', 'success'); }}>Copy me</button>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('medicalHistory'); }}>{isSelected('medicalHistory') ? 'Selected' : 'Select'}</button>
                           {typeof aiNote.medicalHistory === 'object' ? (
                             <div>
                               {aiNote.medicalHistory.allergies && <p><strong>Allergies:</strong> {aiNote.medicalHistory.allergies}</p>}
@@ -1772,21 +1775,20 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                       {/* Dental History */}
                       {aiNote.dentalHistory && (
                         <div 
-                          className="soap-section section-dentalHistory"
+                          className={`soap-section section-dentalHistory ${isSelected('dentalHistory') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
-                            const text = typeof aiNote.dentalHistory === 'object' ? JSON.stringify(aiNote.dentalHistory, null, 2) : aiNote.dentalHistory
-                            navigator.clipboard.writeText(text)
-                            pushToast('Dental History section copied', 'success')
+                            toggleSection('dentalHistory')
                           }}
                           style={{ cursor: 'pointer' }}
-                          title="Click anywhere to copy this section"
+                          title="Click to select this section for Copy/PDF/Save"
                         >
                           <div className="section-title-inline">
                             <span className="section-emoji">🪥</span>
                             <strong>Dental History</strong>
+                            {isSelected('dentalHistory') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
-                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = typeof aiNote.dentalHistory === 'object' ? JSON.stringify(aiNote.dentalHistory, null, 2) : aiNote.dentalHistory; navigator.clipboard.writeText(text); pushToast('Dental History copied', 'success'); }}>Copy me</button>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('dentalHistory'); }}>{isSelected('dentalHistory') ? 'Selected' : 'Select'}</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.dentalHistory}</p>
                         </div>
                       )}
@@ -1794,21 +1796,20 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                       {/* Intraoral Examination */}
                       {aiNote.intraOralExamination && (
                         <div 
-                          className="soap-section section-intraOralExamination"
+                          className={`soap-section section-intraOralExamination ${isSelected('intraOralExamination') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
-                            const text = typeof aiNote.intraOralExamination === 'object' ? JSON.stringify(aiNote.intraOralExamination, null, 2) : aiNote.intraOralExamination
-                            navigator.clipboard.writeText(text)
-                            pushToast('Intraoral Examination section copied', 'success')
+                            toggleSection('intraOralExamination')
                           }}
                           style={{ cursor: 'pointer' }}
-                          title="Click anywhere to copy this section"
+                          title="Click to select this section for Copy/PDF/Save"
                         >
                           <div className="section-title-inline">
                             <span className="section-emoji">👄</span>
                             <strong>Intraoral Examination</strong>
+                            {isSelected('intraOralExamination') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
-                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = typeof aiNote.intraOralExamination === 'object' ? JSON.stringify(aiNote.intraOralExamination, null, 2) : aiNote.intraOralExamination; navigator.clipboard.writeText(text); pushToast('Intraoral Examination copied', 'success'); }}>Copy me</button>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('intraOralExamination'); }}>{isSelected('intraOralExamination') ? 'Selected' : 'Select'}</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.intraOralExamination}</p>
                         </div>
                       )}
@@ -1816,21 +1817,20 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                       {/* Extraoral & TMJ Examination */}
                       {aiNote.extraoralTMJExam && (
                         <div 
-                          className="soap-section section-tmjExam"
+                          className={`soap-section section-tmjExam ${isSelected('extraoralTMJExam') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
-                            const text = typeof aiNote.extraoralTMJExam === 'object' ? JSON.stringify(aiNote.extraoralTMJExam, null, 2) : aiNote.extraoralTMJExam
-                            navigator.clipboard.writeText(text)
-                            pushToast('TMJ Exam section copied', 'success')
+                            toggleSection('extraoralTMJExam')
                           }}
                           style={{ cursor: 'pointer' }}
-                          title="Click anywhere to copy this section"
+                          title="Click to select this section for Copy/PDF/Save"
                         >
                           <div className="section-title-inline">
                             <span className="section-emoji">👁️</span>
                             <strong>Extraoral & TMJ Examination</strong>
+                            {isSelected('extraoralTMJExam') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
-                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = typeof aiNote.extraoralTMJExam === 'object' ? JSON.stringify(aiNote.extraoralTMJExam, null, 2) : aiNote.extraoralTMJExam; navigator.clipboard.writeText(text); pushToast('TMJ Exam copied', 'success'); }}>Copy me</button>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('extraoralTMJExam'); }}>{isSelected('extraoralTMJExam') ? 'Selected' : 'Select'}</button>
                           {typeof aiNote.extraoralTMJExam === 'object' ? (
                             <div>
                               {aiNote.extraoralTMJExam.musclePalpation && (
@@ -1854,21 +1854,20 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                       {/* Diagnostic Procedures */}
                       {aiNote.diagnosticProcedures && (
                         <div 
-                          className="soap-section section-diagnosticProcedures"
+                          className={`soap-section section-diagnosticProcedures ${isSelected('diagnosticProcedures') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
-                            const text = typeof aiNote.diagnosticProcedures === 'object' ? JSON.stringify(aiNote.diagnosticProcedures, null, 2) : aiNote.diagnosticProcedures
-                            navigator.clipboard.writeText(text)
-                            pushToast('Diagnostic Procedures section copied', 'success')
+                            toggleSection('diagnosticProcedures')
                           }}
                           style={{ cursor: 'pointer' }}
-                          title="Click anywhere to copy this section"
+                          title="Click to select this section for Copy/PDF/Save"
                         >
                           <div className="section-title-inline">
                             <span className="section-emoji">🔬</span>
                             <strong>Diagnostic Procedures</strong>
+                            {isSelected('diagnosticProcedures') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
-                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = typeof aiNote.diagnosticProcedures === 'object' ? JSON.stringify(aiNote.diagnosticProcedures, null, 2) : aiNote.diagnosticProcedures; navigator.clipboard.writeText(text); pushToast('Diagnostic Procedures copied', 'success'); }}>Copy me</button>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('diagnosticProcedures'); }}>{isSelected('diagnosticProcedures') ? 'Selected' : 'Select'}</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.diagnosticProcedures}</p>
                         </div>
                       )}
@@ -1876,21 +1875,20 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                       {/* Assessment (Diagnosis) */}
                       {(aiNote.assessment || aiNote.diagnosis) && (
                         <div 
-                          className="soap-section section-assessment"
+                          className={`soap-section section-assessment ${isSelected('assessment') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
-                            const text = aiNote.assessment || aiNote.diagnosis
-                            navigator.clipboard.writeText(text)
-                            pushToast('Assessment section copied', 'success')
+                            toggleSection('assessment')
                           }}
                           style={{ cursor: 'pointer' }}
-                          title="Click anywhere to copy this section"
+                          title="Click to select this section for Copy/PDF/Save"
                         >
                           <div className="section-title-inline">
                             <span className="section-emoji">📊</span>
                             <strong>Assessment</strong>
+                            {isSelected('assessment') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
-                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = aiNote.assessment || aiNote.diagnosis; navigator.clipboard.writeText(text); pushToast('Assessment copied', 'success'); }}>Copy me</button>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('assessment'); }}>{isSelected('assessment') ? 'Selected' : 'Select'}</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.assessment || aiNote.diagnosis}</p>
                         </div>
                       )}
@@ -1898,21 +1896,20 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                       {/* Education & Recommendations */}
                       {aiNote.educationRecommendations && (
                         <div 
-                          className="soap-section section-educationRecommendations"
+                          className={`soap-section section-educationRecommendations ${isSelected('educationRecommendations') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
-                            const text = typeof aiNote.educationRecommendations === 'object' ? JSON.stringify(aiNote.educationRecommendations, null, 2) : aiNote.educationRecommendations
-                            navigator.clipboard.writeText(text)
-                            pushToast('Education & Recommendations section copied', 'success')
+                            toggleSection('educationRecommendations')
                           }}
                           style={{ cursor: 'pointer' }}
-                          title="Click anywhere to copy this section"
+                          title="Click to select this section for Copy/PDF/Save"
                         >
                           <div className="section-title-inline">
                             <span className="section-emoji">📚</span>
                             <strong>Education & Recommendations</strong>
+                            {isSelected('educationRecommendations') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
-                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = typeof aiNote.educationRecommendations === 'object' ? JSON.stringify(aiNote.educationRecommendations, null, 2) : aiNote.educationRecommendations; navigator.clipboard.writeText(text); pushToast('Education & Recommendations copied', 'success'); }}>Copy me</button>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('educationRecommendations'); }}>{isSelected('educationRecommendations') ? 'Selected' : 'Select'}</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.educationRecommendations}</p>
                         </div>
                       )}
@@ -1920,21 +1917,20 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                       {/* Patient Response */}
                       {aiNote.patientResponse && (
                         <div 
-                          className="soap-section section-patientResponse"
+                          className={`soap-section section-patientResponse ${isSelected('patientResponse') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
-                            const text = typeof aiNote.patientResponse === 'object' ? JSON.stringify(aiNote.patientResponse, null, 2) : aiNote.patientResponse
-                            navigator.clipboard.writeText(text)
-                            pushToast('Patient Response section copied', 'success')
+                            toggleSection('patientResponse')
                           }}
                           style={{ cursor: 'pointer' }}
-                          title="Click anywhere to copy this section"
+                          title="Click to select this section for Copy/PDF/Save"
                         >
                           <div className="section-title-inline">
                             <span className="section-emoji">💬</span>
                             <strong>Patient Response</strong>
+                            {isSelected('patientResponse') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
-                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = typeof aiNote.patientResponse === 'object' ? JSON.stringify(aiNote.patientResponse, null, 2) : aiNote.patientResponse; navigator.clipboard.writeText(text); pushToast('Patient Response copied', 'success'); }}>Copy me</button>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('patientResponse'); }}>{isSelected('patientResponse') ? 'Selected' : 'Select'}</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.patientResponse}</p>
                         </div>
                       )}
@@ -1942,21 +1938,20 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                       {/* Plan */}
                       {(aiNote.plan || aiNote.treatmentPlan) && (
                         <div 
-                          className="soap-section section-plan"
+                          className={`soap-section section-plan ${isSelected('plan') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
-                            const text = aiNote.plan || aiNote.treatmentPlan
-                            navigator.clipboard.writeText(text)
-                            pushToast('Plan section copied', 'success')
+                            toggleSection('plan')
                           }}
                           style={{ cursor: 'pointer' }}
-                          title="Click anywhere to copy this section"
+                          title="Click to select this section for Copy/PDF/Save"
                         >
                           <div className="section-title-inline">
                             <span className="section-emoji">📋</span>
                             <strong>Plan</strong>
+                            {isSelected('plan') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
-                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = aiNote.plan || aiNote.treatmentPlan; navigator.clipboard.writeText(text); pushToast('Plan copied', 'success'); }}>Copy me</button>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('plan'); }}>{isSelected('plan') ? 'Selected' : 'Select'}</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.plan || aiNote.treatmentPlan}</p>
                         </div>
                       )}
@@ -1964,21 +1959,20 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                       {/* Treatment Provided */}
                       {aiNote.treatmentProvided && (
                         <div 
-                          className="soap-section section-treatmentProvided"
+                          className={`soap-section section-treatmentProvided ${isSelected('treatmentProvided') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
-                            const text = typeof aiNote.treatmentProvided === 'object' ? JSON.stringify(aiNote.treatmentProvided, null, 2) : aiNote.treatmentProvided
-                            navigator.clipboard.writeText(text)
-                            pushToast('Treatment Provided section copied', 'success')
+                            toggleSection('treatmentProvided')
                           }}
                           style={{ cursor: 'pointer' }}
-                          title="Click anywhere to copy this section"
+                          title="Click to select this section for Copy/PDF/Save"
                         >
                           <div className="section-title-inline">
                             <span className="section-emoji">💉</span>
                             <strong>Treatment Provided</strong>
+                            {isSelected('treatmentProvided') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
-                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = typeof aiNote.treatmentProvided === 'object' ? JSON.stringify(aiNote.treatmentProvided, null, 2) : aiNote.treatmentProvided; navigator.clipboard.writeText(text); pushToast('Treatment Provided copied', 'success'); }}>Copy me</button>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('treatmentProvided'); }}>{isSelected('treatmentProvided') ? 'Selected' : 'Select'}</button>
                           <p style={{ whiteSpace: 'pre-line' }}>{aiNote.treatmentProvided}</p>
                         </div>
                       )}
@@ -1986,21 +1980,20 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                       {/* Prognosis */}
                       {aiNote.prognosis && (
                         <div 
-                          className="soap-section section-prognosis"
+                          className={`soap-section section-prognosis ${isSelected('prognosis') ? 'selected' : ''}`}
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
-                            const text = typeof aiNote.prognosis === 'object' ? JSON.stringify(aiNote.prognosis, null, 2) : aiNote.prognosis
-                            navigator.clipboard.writeText(text)
-                            pushToast('Prognosis section copied', 'success')
+                            toggleSection('prognosis')
                           }}
                           style={{ cursor: 'pointer' }}
-                          title="Click anywhere to copy this section"
+                          title="Click to select this section for Copy/PDF/Save"
                         >
                           <div className="section-title-inline">
                             <span className="section-emoji">🔮</span>
                             <strong>Prognosis</strong>
+                            {isSelected('prognosis') && <span style={{ marginLeft: 'auto', color: 'var(--brand-green)' }}>✓</span>}
                           </div>
-                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = typeof aiNote.prognosis === 'object' ? JSON.stringify(aiNote.prognosis, null, 2) : aiNote.prognosis; navigator.clipboard.writeText(text); pushToast('Prognosis copied', 'success'); }}>Copy me</button>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); toggleSection('prognosis'); }}>{isSelected('prognosis') ? 'Selected' : 'Select'}</button>
                           <p>{aiNote.prognosis}</p>
                         </div>
                       )}
