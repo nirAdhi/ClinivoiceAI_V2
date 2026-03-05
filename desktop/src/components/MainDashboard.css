@@ -497,9 +497,19 @@
     border-left-color: #8b5cf6;
 }
 
-.soap-section.section-intraOralExamination {
+.soap-section.section-dentalHistory {
+    background: linear-gradient(135deg, #fdf4ff 0%, #f5d0fe 100%);
+    border-left-color: #d946ef;
+}
+
+.soap-section.section-tmjExam {
     background: linear-gradient(135deg, #fef9c3 0%, #fde68a 100%);
     border-left-color: #eab308;
+}
+
+.soap-section.section-intraOralExamination {
+    background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
+    border-left-color: #f97316;
 }
 
 .soap-section.section-diagnosticProcedures {
@@ -525,6 +535,16 @@
 .soap-section.section-plan {
     background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
     border-left-color: #6366f1;
+}
+
+.soap-section.section-treatmentProvided {
+    background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+    border-left-color: #ec4899;
+}
+
+.soap-section.section-prognosis {
+    background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+    border-left-color: #a855f7;
 }
 .section-header {
     display: flex;

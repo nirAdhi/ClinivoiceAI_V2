@@ -147,39 +147,45 @@ Return ONLY valid JSON with these exact keys. Do not include any markdown format
         const shortTranscript = transcription.substring(0, 500);
         
         const prompt = domain === 'dental' 
-            ? `You are a professional dental TMJ scribe. Create a detailed TMJ evaluation note from this transcription: "${shortTranscript}"
+            ? `You are a professional dental scribe. Create a detailed dental note from this transcription: "${shortTranscript}"
 
 Analyze the transcription carefully and extract all relevant information for each section below. Use specific details mentioned in the dictation.
 
 Return ONLY JSON with these exact keys:
 {
   "patientInfo": {
-    "name": "Full patient name (e.g., Mike Smith)",
-    "provider": "Provider name with Dr. prefix (e.g., Dr. Gerster)",
-    "visitType": "Specific visit type (e.g., New/Returning patient – Emergency TMJ evaluation)",
+    "name": "Full patient name",
+    "provider": "Provider name with Dr. prefix",
+    "visitType": "Specific visit type (e.g., Routine Dental Examination & Consultation, Emergency TMJ evaluation)",
     "referralSource": "How patient was referred"
   },
-  "chiefComplaint": "Patient's main complaint in quotes (e.g., 'Jaw locked on the right side with severe pain for 2 days.')",
-  "historyOfPresentIllness": "Detailed HPI as bullet points:\n• Duration (e.g., 2 days)\n• Severity (e.g., pain level 9-10/10)\n• History of similar episodes\n• Symptoms (difficulty opening, popping, etc.)\n• Associated symptoms (headaches, migraines)\n• Aggravating/relieving factors",
+  "chiefComplaint": "Patient's main complaint",
+  "historyOfPresentIllness": "Detailed HPI with duration, symptoms, aggravating factors",
   "medicalHistory": {
-    "allergies": "List allergies or 'No known allergies'",
-    "disorders": "List any systemic disorders or 'No reported neurological, cardiovascular, GI, GU, immune, integumentary, musculoskeletal, or hematologic disorders'",
-    "psychosocial": "Marital status, occupation, education (e.g., Divorced. Full-time professor. College educated.)"
+    "allergies": "List allergies or 'No known allergies / Not discussed'",
+    "disorders": "List systemic disorders or 'No concerns mentioned'",
+    "psychosocial": "Marital status, occupation if mentioned"
   },
+  "dentalHistory": "Previous dental visits, oral hygiene habits, concerns",
+  "intraOralExamination": "Findings from intraoral exam: teeth condition, gums, inflammation, plaque, etc.",
+  "diagnosticProcedures": "X-rays ordered, tests performed, awaiting results",
+  "assessment": "Clinical assessment and provisional diagnosis",
+  "educationRecommendations": "Oral hygiene instructions, recommendations given to patient",
+  "patientResponse": "Patient understanding and acceptance of recommendations",
+  "plan": "Next steps, follow-up, treatment planned",
   "extraoralTMJExam": {
     "musclePalpation": {
-      "temporalisRight": "Tenderness level with pain score if mentioned",
+      "temporalisRight": "Tenderness level",
       "temporalisLeft": "Tenderness level",
       "masseterRight": "Tenderness level",
       "masseterLeft": "Tenderness level",
       "notes": "Secondary pain notes"
     },
-    "tmjEvaluation": "Opening measurements, deviation, excursions, disc-condyle findings"
+    "tmjEvaluation": "Opening measurements, deviation, excursions"
   },
-  "diagnosis": "Provisional diagnosis as bullet points:\n• Primary condition\n• Secondary conditions",
-  "treatmentProvided": "Specific procedures performed in office",
-  "treatmentPlan": "Referrals with frequency and duration, monitoring plan, re-evaluation criteria",
-  "prognosis": "Expected outcome (e.g., Good. Condition expected to improve with physical therapy and conservative management.)"
+  "treatmentProvided": "Specific procedures performed today",
+  "treatmentPlan": "Detailed plan with referrals and monitoring",
+  "prognosis": "Expected outcome"
 }`
             : `Create SOAP note JSON from: "${shortTranscript}". Return ONLY JSON with: subjective,objective,assessment,plan`;
 
@@ -224,16 +230,23 @@ Return ONLY JSON with these exact keys:
                 patientInfo: {
                     name: pMatch ? pMatch[1] : '[Patient Name]',
                     provider: dMatch ? 'Dr. ' + dMatch[1] : '[Provider Name]',
-                    visitType: 'New/Returning patient – Emergency TMJ evaluation',
+                    visitType: 'Routine Dental Examination & Consultation',
                     referralSource: 'Self-referred'
                 },
                 chiefComplaint: text.substring(0, 300) || '-',
                 historyOfPresentIllness: '-',
                 medicalHistory: {
-                    allergies: 'None reported',
-                    disorders: 'None reported',
+                    allergies: 'Not discussed/No concerns mentioned',
+                    disorders: 'No concerns mentioned',
                     psychosocial: '-'
                 },
+                dentalHistory: '-',
+                intraOralExamination: '-',
+                diagnosticProcedures: '-',
+                assessment: '-',
+                educationRecommendations: '-',
+                patientResponse: '-',
+                plan: '-',
                 extraoralTMJExam: {
                     musclePalpation: {
                         temporalisRight: '-',
@@ -244,7 +257,6 @@ Return ONLY JSON with these exact keys:
                     },
                     tmjEvaluation: '-'
                 },
-                diagnosis: '-',
                 treatmentProvided: '-',
                 treatmentPlan: '-',
                 prognosis: '-'
@@ -620,7 +632,98 @@ Return ONLY JSON with these exact keys:
         treatmentPlan = '';
     }
     
-    // Extract prognosis
+    // Extract dental history
+    let dentalHistory = '-';
+    const dentalPatterns = [
+        /(?:no|last) recent dental visit/i,
+        /(?:oral hygiene|brushing|flossing)[^.]*(?:inconsistent|irregular|poor)/i,
+        /last dental visit[^.]*(?:while ago|long time|years)/i
+    ];
+    const dentalMatches = [];
+    for (const pattern of dentalPatterns) {
+        const match = text.match(pattern);
+        if (match && !dentalMatches.includes(match[0])) {
+            dentalMatches.push(match[0]);
+        }
+    }
+    if (dentalMatches.length > 0) {
+        dentalHistory = dentalMatches.slice(0, 2).join('. ') + '.';
+    }
+    
+    // Extract intraoral examination
+    let intraOralExamination = '-';
+    const intraoralPatterns = [
+        /teeth[^.]*(?:healthy|good condition)/i,
+        /gum[^.]*(?:inflammation|bleeding|healthy)/i,
+        /plaque[^.]*(?:accumulation|present|noted)/i,
+        /signs?[^.]*inflammation/i
+    ];
+    const intraoralMatches = [];
+    for (const pattern of intraoralPatterns) {
+        const match = text.match(pattern);
+        if (match && !intraoralMatches.includes(match[0]) && match[0].length < 60) {
+            intraoralMatches.push(match[0]);
+        }
+    }
+    if (intraoralMatches.length > 0) {
+        intraOralExamination = intraoralMatches.slice(0, 3).map(i => i.charAt(0).toUpperCase() + i.slice(1)).join('. ') + '.';
+    }
+    
+    // Extract diagnostic procedures
+    let diagnosticProcedures = '-';
+    const dxPatterns = [
+        /(?:x-ray|xray)[^.]*ordered/i,
+        /(?:x-ray|xray)[^.]*await/i,
+        /radiographic[^.]*evaluation/i,
+        /awaiting[^.]*result/i
+    ];
+    const dxMatches = [];
+    for (const pattern of dxPatterns) {
+        const match = text.match(pattern);
+        if (match && !dxMatches.includes(match[0])) {
+            dxMatches.push(match[0]);
+        }
+    }
+    if (dxMatches.length > 0) {
+        diagnosticProcedures = dxMatches.slice(0, 2).map(d => d.charAt(0).toUpperCase() + d.slice(1)).join('. ') + '.';
+    }
+    
+    // Extract education/recommendations
+    let educationRecommendations = '-';
+    const eduPatterns = [
+        /(?:brushing|brush)[^.]*twice[^.]*daily/i,
+        /(?:soft|gentle)[^.]*(?:bristle|brushing)/i,
+        /flossing[^.]*(?:regular|daily)/i,
+        /replace[^.]*toothbrush[^.]*(?:3|three)[^.]*month/i,
+        /routine[^.]*dental[^.]*visit/i
+    ];
+    const eduMatches = [];
+    for (const pattern of eduPatterns) {
+        const match = text.match(pattern);
+        if (match && !eduMatches.includes(match[0]) && match[0].length < 80) {
+            eduMatches.push(match[0]);
+        }
+    }
+    if (eduMatches.length > 0) {
+        educationRecommendations = eduMatches.slice(0, 4).map(e => '• ' + e.charAt(0).toUpperCase() + e.slice(1)).join('\n');
+    }
+    
+    // Extract patient response
+    let patientResponse = '-';
+    const responseMatch = text.match(/(?:patient|pt)[^.]*understood[^.]*instruction/i);
+    if (responseMatch) {
+        patientResponse = responseMatch[0].charAt(0).toUpperCase() + responseMatch[0].slice(1) + '.';
+    } else if (text.match(/express[^.]*intention[^.]*improve/i)) {
+        patientResponse = 'Patient expressed intention to improve oral hygiene habits.';
+    }
+    
+    // Extract assessment (formerly diagnosis)
+    let assessment = diagnosis; // use existing diagnosis extraction
+    
+    // Extract plan (formerly treatmentPlan)
+    let plan = treatmentPlan; // use existing treatmentPlan extraction
+    
+    // Update the return object to include all new sections
     let prognosis = '-';
     const prognosisKeywords = ['prognosis', 'expected', 'outcome', 'improve', 'good', 'fair', 'excellent'];
     for (const kw of prognosisKeywords) {
@@ -641,7 +744,7 @@ Return ONLY JSON with these exact keys:
         patientInfo: {
             name: patientName,
             provider: providerName,
-            visitType: 'New/Returning patient – Emergency TMJ evaluation',
+            visitType: 'Routine Dental Examination & Consultation',
             referralSource: 'Self-referred'
         },
         chiefComplaint: chiefComplaint,
@@ -651,6 +754,13 @@ Return ONLY JSON with these exact keys:
             disorders: disorders,
             psychosocial: psychosocial
         },
+        dentalHistory: dentalHistory,
+        intraOralExamination: intraOralExamination,
+        diagnosticProcedures: diagnosticProcedures,
+        assessment: assessment,
+        educationRecommendations: educationRecommendations,
+        patientResponse: patientResponse,
+        plan: plan,
         extraoralTMJExam: {
             musclePalpation: {
                 temporalisRight: temporalisRight,
@@ -661,7 +771,6 @@ Return ONLY JSON with these exact keys:
             },
             tmjEvaluation: tmjEvaluation
         },
-        diagnosis: diagnosis,
         treatmentProvided: treatmentProvided,
         treatmentPlan: treatmentPlan,
         prognosis: prognosis

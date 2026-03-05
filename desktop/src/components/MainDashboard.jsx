@@ -792,7 +792,7 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
     }
   }
 
-  // Build a paste-friendly plain text for dental notes - matching user's template format
+  // Build a paste-friendly plain text for dental notes - matching user's template format exactly
   const formatNoteAsText = (note, selected) => {
     if (!note) return ''
     const hasSel = selected && selected.size > 0
@@ -854,8 +854,13 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
       addSection('dentalHistory', 'Dental History', note.dentalHistory)
     }
     
-    // Extraoral & TMJ Examination
-    if (note.extraoralTMJExam && include('intraOralExamination')) {
+    // Intraoral Examination (from either new field or TMJ exam for now)
+    if (note.intraOralExamination && include('intraOralExamination')) {
+      addSection('intraOralExamination', 'Intraoral Examination', note.intraOralExamination)
+    }
+    
+    // Extraoral & TMJ Examination (TMJ-specific notes)
+    if (note.extraoralTMJExam && include('extraoralTMJExam')) {
       const tmjParts = []
       if (typeof note.extraoralTMJExam === 'object') {
         if (note.extraoralTMJExam.musclePalpation) {
@@ -878,44 +883,41 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
       }
     }
     
-    // Diagnosis
-    if (note.diagnosis) {
-      addSection('assessment', 'Diagnosis', note.diagnosis)
+    // Diagnostic Procedures
+    if (note.diagnosticProcedures) {
+      addSection('diagnosticProcedures', 'Diagnostic Procedures', note.diagnosticProcedures)
     }
     
-    // Treatment Provided
+    // Assessment (Diagnosis)
+    if (note.assessment || note.diagnosis) {
+      const assessmentText = note.assessment || note.diagnosis
+      addSection('assessment', 'Assessment', assessmentText)
+    }
+    
+    // Education & Recommendations
+    if (note.educationRecommendations) {
+      addSection('educationRecommendations', 'Education & Recommendations', note.educationRecommendations)
+    }
+    
+    // Patient Response
+    if (note.patientResponse) {
+      addSection('patientResponse', 'Patient Response', note.patientResponse)
+    }
+    
+    // Plan (Treatment Plan)
+    if (note.plan || note.treatmentPlan) {
+      const planText = note.plan || note.treatmentPlan
+      addSection('plan', 'Plan', planText)
+    }
+    
+    // Treatment Provided (if different from diagnostic procedures)
     if (note.treatmentProvided) {
-      addSection('diagnosticProcedures', 'Treatment Provided', note.treatmentProvided)
-    }
-    
-    // Treatment Plan
-    if (note.treatmentPlan) {
-      addSection('plan', 'Treatment Plan', note.treatmentPlan)
+      addSection('treatmentProvided', 'Treatment Provided', note.treatmentProvided)
     }
     
     // Prognosis
     if (note.prognosis) {
-      addSection('patientResponse', 'Prognosis', note.prognosis)
-    }
-    
-    // Legacy sections (for backward compatibility)
-    if (note.intraOralExamination) {
-      addSection('intraOralExamination', 'Intraoral Examination', note.intraOralExamination)
-    }
-    if (note.diagnosticProcedures) {
-      addSection('diagnosticProcedures', 'Diagnostic Procedures', note.diagnosticProcedures)
-    }
-    if (note.assessment) {
-      addSection('assessment', 'Assessment', note.assessment)
-    }
-    if (note.educationRecommendations) {
-      addSection('educationRecommendations', 'Education & Recommendations', note.educationRecommendations)
-    }
-    if (note.patientResponse) {
-      addSection('patientResponse', 'Patient Response', note.patientResponse)
-    }
-    if (note.plan) {
-      addSection('plan', 'Plan', note.plan)
+      addSection('prognosis', 'Prognosis', note.prognosis)
     }
     
     return parts.join('\n\n')
@@ -1767,10 +1769,54 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                         </div>
                       )}
 
+                      {/* Dental History */}
+                      {aiNote.dentalHistory && (
+                        <div 
+                          className="soap-section section-dentalHistory"
+                          onClick={(e) => {
+                            if (e.target.closest('.copy-btn')) return
+                            const text = typeof aiNote.dentalHistory === 'object' ? JSON.stringify(aiNote.dentalHistory, null, 2) : aiNote.dentalHistory
+                            navigator.clipboard.writeText(text)
+                            pushToast('Dental History section copied', 'success')
+                          }}
+                          style={{ cursor: 'pointer' }}
+                          title="Click anywhere to copy this section"
+                        >
+                          <div className="section-title-inline">
+                            <span className="section-emoji">🪥</span>
+                            <strong>Dental History</strong>
+                          </div>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = typeof aiNote.dentalHistory === 'object' ? JSON.stringify(aiNote.dentalHistory, null, 2) : aiNote.dentalHistory; navigator.clipboard.writeText(text); pushToast('Dental History copied', 'success'); }}>Copy me</button>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.dentalHistory}</p>
+                        </div>
+                      )}
+
+                      {/* Intraoral Examination */}
+                      {aiNote.intraOralExamination && (
+                        <div 
+                          className="soap-section section-intraOralExamination"
+                          onClick={(e) => {
+                            if (e.target.closest('.copy-btn')) return
+                            const text = typeof aiNote.intraOralExamination === 'object' ? JSON.stringify(aiNote.intraOralExamination, null, 2) : aiNote.intraOralExamination
+                            navigator.clipboard.writeText(text)
+                            pushToast('Intraoral Examination section copied', 'success')
+                          }}
+                          style={{ cursor: 'pointer' }}
+                          title="Click anywhere to copy this section"
+                        >
+                          <div className="section-title-inline">
+                            <span className="section-emoji">👄</span>
+                            <strong>Intraoral Examination</strong>
+                          </div>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = typeof aiNote.intraOralExamination === 'object' ? JSON.stringify(aiNote.intraOralExamination, null, 2) : aiNote.intraOralExamination; navigator.clipboard.writeText(text); pushToast('Intraoral Examination copied', 'success'); }}>Copy me</button>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.intraOralExamination}</p>
+                        </div>
+                      )}
+
                       {/* Extraoral & TMJ Examination */}
                       {aiNote.extraoralTMJExam && (
                         <div 
-                          className="soap-section section-intraOralExamination"
+                          className="soap-section section-tmjExam"
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
                             const text = typeof aiNote.extraoralTMJExam === 'object' ? JSON.stringify(aiNote.extraoralTMJExam, null, 2) : aiNote.extraoralTMJExam
@@ -1805,30 +1851,120 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                         </div>
                       )}
 
-                      {/* Diagnosis */}
-                      {aiNote.diagnosis && (
+                      {/* Diagnostic Procedures */}
+                      {aiNote.diagnosticProcedures && (
+                        <div 
+                          className="soap-section section-diagnosticProcedures"
+                          onClick={(e) => {
+                            if (e.target.closest('.copy-btn')) return
+                            const text = typeof aiNote.diagnosticProcedures === 'object' ? JSON.stringify(aiNote.diagnosticProcedures, null, 2) : aiNote.diagnosticProcedures
+                            navigator.clipboard.writeText(text)
+                            pushToast('Diagnostic Procedures section copied', 'success')
+                          }}
+                          style={{ cursor: 'pointer' }}
+                          title="Click anywhere to copy this section"
+                        >
+                          <div className="section-title-inline">
+                            <span className="section-emoji">🔬</span>
+                            <strong>Diagnostic Procedures</strong>
+                          </div>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = typeof aiNote.diagnosticProcedures === 'object' ? JSON.stringify(aiNote.diagnosticProcedures, null, 2) : aiNote.diagnosticProcedures; navigator.clipboard.writeText(text); pushToast('Diagnostic Procedures copied', 'success'); }}>Copy me</button>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.diagnosticProcedures}</p>
+                        </div>
+                      )}
+
+                      {/* Assessment (Diagnosis) */}
+                      {(aiNote.assessment || aiNote.diagnosis) && (
                         <div 
                           className="soap-section section-assessment"
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
-                            const text = typeof aiNote.diagnosis === 'object' ? JSON.stringify(aiNote.diagnosis, null, 2) : aiNote.diagnosis
+                            const text = aiNote.assessment || aiNote.diagnosis
                             navigator.clipboard.writeText(text)
-                            pushToast('Diagnosis section copied', 'success')
+                            pushToast('Assessment section copied', 'success')
                           }}
                           style={{ cursor: 'pointer' }}
                           title="Click anywhere to copy this section"
                         >
                           <div className="section-title-inline">
                             <span className="section-emoji">📊</span>
-                            <strong>Diagnosis (Provisional)</strong>
+                            <strong>Assessment</strong>
                           </div>
-                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = typeof aiNote.diagnosis === 'object' ? JSON.stringify(aiNote.diagnosis, null, 2) : aiNote.diagnosis; navigator.clipboard.writeText(text); pushToast('Diagnosis copied', 'success'); }}>Copy me</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.diagnosis}</p>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = aiNote.assessment || aiNote.diagnosis; navigator.clipboard.writeText(text); pushToast('Assessment copied', 'success'); }}>Copy me</button>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.assessment || aiNote.diagnosis}</p>
                         </div>
                       )}
+
+                      {/* Education & Recommendations */}
+                      {aiNote.educationRecommendations && (
+                        <div 
+                          className="soap-section section-educationRecommendations"
+                          onClick={(e) => {
+                            if (e.target.closest('.copy-btn')) return
+                            const text = typeof aiNote.educationRecommendations === 'object' ? JSON.stringify(aiNote.educationRecommendations, null, 2) : aiNote.educationRecommendations
+                            navigator.clipboard.writeText(text)
+                            pushToast('Education & Recommendations section copied', 'success')
+                          }}
+                          style={{ cursor: 'pointer' }}
+                          title="Click anywhere to copy this section"
+                        >
+                          <div className="section-title-inline">
+                            <span className="section-emoji">📚</span>
+                            <strong>Education & Recommendations</strong>
+                          </div>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = typeof aiNote.educationRecommendations === 'object' ? JSON.stringify(aiNote.educationRecommendations, null, 2) : aiNote.educationRecommendations; navigator.clipboard.writeText(text); pushToast('Education & Recommendations copied', 'success'); }}>Copy me</button>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.educationRecommendations}</p>
+                        </div>
+                      )}
+
+                      {/* Patient Response */}
+                      {aiNote.patientResponse && (
+                        <div 
+                          className="soap-section section-patientResponse"
+                          onClick={(e) => {
+                            if (e.target.closest('.copy-btn')) return
+                            const text = typeof aiNote.patientResponse === 'object' ? JSON.stringify(aiNote.patientResponse, null, 2) : aiNote.patientResponse
+                            navigator.clipboard.writeText(text)
+                            pushToast('Patient Response section copied', 'success')
+                          }}
+                          style={{ cursor: 'pointer' }}
+                          title="Click anywhere to copy this section"
+                        >
+                          <div className="section-title-inline">
+                            <span className="section-emoji">💬</span>
+                            <strong>Patient Response</strong>
+                          </div>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = typeof aiNote.patientResponse === 'object' ? JSON.stringify(aiNote.patientResponse, null, 2) : aiNote.patientResponse; navigator.clipboard.writeText(text); pushToast('Patient Response copied', 'success'); }}>Copy me</button>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.patientResponse}</p>
+                        </div>
+                      )}
+
+                      {/* Plan */}
+                      {(aiNote.plan || aiNote.treatmentPlan) && (
+                        <div 
+                          className="soap-section section-plan"
+                          onClick={(e) => {
+                            if (e.target.closest('.copy-btn')) return
+                            const text = aiNote.plan || aiNote.treatmentPlan
+                            navigator.clipboard.writeText(text)
+                            pushToast('Plan section copied', 'success')
+                          }}
+                          style={{ cursor: 'pointer' }}
+                          title="Click anywhere to copy this section"
+                        >
+                          <div className="section-title-inline">
+                            <span className="section-emoji">📋</span>
+                            <strong>Plan</strong>
+                          </div>
+                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = aiNote.plan || aiNote.treatmentPlan; navigator.clipboard.writeText(text); pushToast('Plan copied', 'success'); }}>Copy me</button>
+                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.plan || aiNote.treatmentPlan}</p>
+                        </div>
+                      )}
+
+                      {/* Treatment Provided */}
                       {aiNote.treatmentProvided && (
                         <div 
-                          className="soap-section section-diagnosticProcedures"
+                          className="soap-section section-treatmentProvided"
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
                             const text = typeof aiNote.treatmentProvided === 'object' ? JSON.stringify(aiNote.treatmentProvided, null, 2) : aiNote.treatmentProvided
@@ -1847,32 +1983,10 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
                         </div>
                       )}
 
-                      {/* Treatment Plan */}
-                      {aiNote.treatmentPlan && (
-                        <div 
-                          className="soap-section section-plan"
-                          onClick={(e) => {
-                            if (e.target.closest('.copy-btn')) return
-                            const text = typeof aiNote.treatmentPlan === 'object' ? JSON.stringify(aiNote.treatmentPlan, null, 2) : aiNote.treatmentPlan
-                            navigator.clipboard.writeText(text)
-                            pushToast('Treatment Plan section copied', 'success')
-                          }}
-                          style={{ cursor: 'pointer' }}
-                          title="Click anywhere to copy this section"
-                        >
-                          <div className="section-title-inline">
-                            <span className="section-emoji">📋</span>
-                            <strong>Treatment Plan</strong>
-                          </div>
-                          <button className="copy-btn" onClick={(e) => { e.stopPropagation(); const text = typeof aiNote.treatmentPlan === 'object' ? JSON.stringify(aiNote.treatmentPlan, null, 2) : aiNote.treatmentPlan; navigator.clipboard.writeText(text); pushToast('Treatment Plan copied', 'success'); }}>Copy me</button>
-                          <p style={{ whiteSpace: 'pre-line' }}>{aiNote.treatmentPlan}</p>
-                        </div>
-                      )}
-
                       {/* Prognosis */}
                       {aiNote.prognosis && (
                         <div 
-                          className="soap-section section-patientResponse"
+                          className="soap-section section-prognosis"
                           onClick={(e) => {
                             if (e.target.closest('.copy-btn')) return
                             const text = typeof aiNote.prognosis === 'object' ? JSON.stringify(aiNote.prognosis, null, 2) : aiNote.prognosis
