@@ -230,6 +230,9 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
     if (!aiNote) { alert('No note to copy'); return }
     const text = formatNoteAsText(aiNote, selectedSections)
     setCopyPreview(text)
+    // Close any open modals first to prevent double modal
+    setShowPreviewModal(false)
+    setShowSaveModal(false)
     setShowCopyModal(true)
   }
 
@@ -789,110 +792,133 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
     }
   }
 
-  // Build a paste-friendly plain text for dental notes
+  // Build a paste-friendly plain text for dental notes - matching user's template format
   const formatNoteAsText = (note, selected) => {
     if (!note) return ''
     const hasSel = selected && selected.size > 0
     const include = (k) => !hasSel || selected.has(k)
-    const normalize = (s) => {
-      const t = String(s || '').trim()
-      if (!t) return ''
-      if (t.includes('\n')) return t
-      return t.replace(/([.?!])\s+/g, '$1\n')
-    }
-    const hasContent = (s) => {
-      const t = String(s || '').trim()
-      return t && t !== '-' && t !== '[object Object]' && !t.startsWith('• Diagnosis pending') && !t.includes('No specific treatment')
-    }
     
-    if (note.chiefComplaint || (note.patient && note.visitType)) {
-      const parts = []
-      if (include('header')) {
-        const headerParts = []
-        if (note.patient || note.patientInfo?.name) headerParts.push(`Patient: ${note.patient || note.patientInfo?.name || ''}`)
-        if (note.date) headerParts.push(`Date: ${note.date}`)
-        if (note.dentist || note.patientInfo?.provider) headerParts.push(`Dentist: ${note.dentist || note.patientInfo?.provider || ''}`)
-        if (note.visitType || note.patientInfo?.visitType) headerParts.push(`Visit Type: ${note.visitType || note.patientInfo?.visitType || ''}`)
-        if (headerParts.length > 0) parts.push(headerParts.join('\n'))
-      }
-      
-      // Handle TMJ-style note structure
-      if (note.chiefComplaint && hasContent(note.chiefComplaint) && include('chiefComplaint')) 
-        parts.push(`🦷 Chief Complaint:\n${normalize(note.chiefComplaint)}`)
-      if (note.historyOfPresentIllness && hasContent(note.historyOfPresentIllness) && include('historyOfPresentIllness')) 
-        parts.push(`📋 History of Present Illness:\n${normalize(note.historyOfPresentIllness)}`)
-      if (note.medicalHistory && hasContent(note.medicalHistory) && include('medicalHistory')) {
-        if (typeof note.medicalHistory === 'object') {
-          const medParts = []
-          if (hasContent(note.medicalHistory.allergies)) medParts.push(`Allergies: ${normalize(note.medicalHistory.allergies)}`)
-          if (hasContent(note.medicalHistory.disorders)) medParts.push(`Disorders: ${normalize(note.medicalHistory.disorders)}`)
-          if (hasContent(note.medicalHistory.psychosocial)) medParts.push(`Psychosocial: ${normalize(note.medicalHistory.psychosocial)}`)
-          if (medParts.length > 0) parts.push(`⚕️ Medical History:\n${medParts.join('\n')}`)
-        } else {
-          parts.push(`⚕️ Medical History:\n${normalize(note.medicalHistory)}`)
-        }
-      }
-      if (note.dentalHistory && hasContent(note.dentalHistory) && include('dentalHistory')) 
-        parts.push(`🪥 Dental History:\n${normalize(note.dentalHistory)}`)
-      
-      // TMJ Examination
-      if (note.extraoralTMJExam && include('intraOralExamination')) {
-        const tmjParts = []
-        if (typeof note.extraoralTMJExam === 'object') {
-          if (note.extraoralTMJExam.musclePalpation) {
-            const muscleParts = []
-            if (hasContent(note.extraoralTMJExam.musclePalpation.temporalisRight)) 
-              muscleParts.push(`• Temporalis Right: ${normalize(note.extraoralTMJExam.musclePalpation.temporalisRight)}`)
-            if (hasContent(note.extraoralTMJExam.musclePalpation.temporalisLeft)) 
-              muscleParts.push(`• Temporalis Left: ${normalize(note.extraoralTMJExam.musclePalpation.temporalisLeft)}`)
-            if (hasContent(note.extraoralTMJExam.musclePalpation.masseterRight)) 
-              muscleParts.push(`• Masseter Right: ${normalize(note.extraoralTMJExam.musclePalpation.masseterRight)}`)
-            if (hasContent(note.extraoralTMJExam.musclePalpation.masseterLeft)) 
-              muscleParts.push(`• Masseter Left: ${normalize(note.extraoralTMJExam.musclePalpation.masseterLeft)}`)
-            if (muscleParts.length > 0) tmjParts.push(`Muscle Palpation:\n${muscleParts.join('\n')}`)
-          }
-          if (hasContent(note.extraoralTMJExam.tmjEvaluation)) 
-            tmjParts.push(`TMJ Evaluation: ${normalize(note.extraoralTMJExam.tmjEvaluation)}`)
-        }
-        if (tmjParts.length > 0) parts.push(`👁️ Extraoral & TMJ Examination:\n${tmjParts.join('\n\n')}`)
-      }
-      
-      // Diagnosis
-      if (note.diagnosis && hasContent(note.diagnosis) && include('assessment')) 
-        parts.push(`📊 Diagnosis (Provisional):\n${normalize(note.diagnosis)}`)
-      
-      // Treatment
-      if (note.treatmentProvided && hasContent(note.treatmentProvided) && include('diagnosticProcedures')) 
-        parts.push(`💉 Treatment Provided:\n${normalize(note.treatmentProvided)}`)
-      if (note.treatmentPlan && hasContent(note.treatmentPlan) && include('plan')) 
-        parts.push(`📋 Treatment Plan:\n${normalize(note.treatmentPlan)}`)
-      if (note.prognosis && hasContent(note.prognosis) && include('patientResponse')) 
-        parts.push(`🔮 Prognosis:\n${normalize(note.prognosis)}`)
-      
-      // Legacy SOAP-style sections
-      if (note.intraOralExamination && hasContent(note.intraOralExamination) && include('intraOralExamination')) 
-        parts.push(`👁️ Intraoral Examination:\n${normalize(note.intraOralExamination)}`)
-      if (note.diagnosticProcedures && hasContent(note.diagnosticProcedures) && include('diagnosticProcedures')) 
-        parts.push(`🔬 Diagnostic Procedures:\n${normalize(note.diagnosticProcedures)}`)
-      if (note.assessment && hasContent(note.assessment) && include('assessment')) 
-        parts.push(`📊 Assessment:\n${normalize(note.assessment)}`)
-      if (note.educationRecommendations && hasContent(note.educationRecommendations) && include('educationRecommendations')) 
-        parts.push(`📚 Education & Recommendations:\n${normalize(note.educationRecommendations)}`)
-      if (note.patientResponse && hasContent(note.patientResponse) && include('patientResponse')) 
-        parts.push(`💬 Patient Response:\n${normalize(note.patientResponse)}`)
-      if (note.plan && hasContent(note.plan) && include('plan')) 
-        parts.push(`📋 Plan:\n${normalize(note.plan)}`)
-        
-      return parts.filter(Boolean).join('\n\n').trim()
-    }
-    
-    // Legacy SOAP format
     const parts = []
-    if (include('subjective') && hasContent(note.subjective)) parts.push(`Subjective:\n${normalize(note.subjective)}`)
-    if (include('objective') && hasContent(note.objective)) parts.push(`Objective:\n${normalize(note.objective)}`)
-    if (include('assessment') && hasContent(note.assessment)) parts.push(`Assessment:\n${normalize(note.assessment)}`)
-    if (include('plan') && hasContent(note.plan)) parts.push(`Plan:\n${normalize(note.plan)}`)
-    return parts.join('\n\n').trim()
+    
+    // Header section - always include if header is selected or nothing is selected
+    if (include('header')) {
+      const headerLines = []
+      const patientName = note.patient || note.patientInfo?.name || derivePatientName() || '[Patient Name]'
+      const date = note.date || new Date().toLocaleDateString()
+      const dentist = note.dentist || note.patientInfo?.provider || user?.userId || '[Dentist Name]'
+      const visitType = note.visitType || note.patientInfo?.visitType || 'Routine Dental Examination & Consultation'
+      
+      headerLines.push(`Patient: ${patientName}`)
+      headerLines.push(`Date: ${date}`)
+      headerLines.push(`Dentist: ${dentist}`)
+      headerLines.push(`Visit Type: ${visitType}`)
+      
+      parts.push(headerLines.join('\n'))
+    }
+    
+    // Helper to add section if content exists and is selected
+    const addSection = (key, title, content) => {
+      if (!include(key)) return
+      const text = String(content || '').trim()
+      if (!text || text === '-' || text === '[object Object]') return
+      parts.push(`${title}:\n\n${text}`)
+    }
+    
+    // Chief Complaint
+    if (note.chiefComplaint) {
+      addSection('chiefComplaint', 'Chief Complaint', note.chiefComplaint)
+    }
+    
+    // History of Present Illness
+    if (note.historyOfPresentIllness) {
+      addSection('historyOfPresentIllness', 'History of Present Illness', note.historyOfPresentIllness)
+    }
+    
+    // Medical History
+    if (note.medicalHistory && include('medicalHistory')) {
+      if (typeof note.medicalHistory === 'object') {
+        const medParts = []
+        if (note.medicalHistory.allergies) medParts.push(`Allergies: ${note.medicalHistory.allergies}`)
+        if (note.medicalHistory.disorders) medParts.push(`Disorders: ${note.medicalHistory.disorders}`)
+        if (note.medicalHistory.psychosocial) medParts.push(`Psychosocial: ${note.medicalHistory.psychosocial}`)
+        if (medParts.length > 0) {
+          parts.push(`Medical History:\n\n${medParts.join('\n')}`)
+        }
+      } else {
+        addSection('medicalHistory', 'Medical History', note.medicalHistory)
+      }
+    }
+    
+    // Dental History
+    if (note.dentalHistory) {
+      addSection('dentalHistory', 'Dental History', note.dentalHistory)
+    }
+    
+    // Extraoral & TMJ Examination
+    if (note.extraoralTMJExam && include('intraOralExamination')) {
+      const tmjParts = []
+      if (typeof note.extraoralTMJExam === 'object') {
+        if (note.extraoralTMJExam.musclePalpation) {
+          const muscleParts = []
+          if (note.extraoralTMJExam.musclePalpation.temporalisRight) 
+            muscleParts.push(`Temporalis Right: ${note.extraoralTMJExam.musclePalpation.temporalisRight}`)
+          if (note.extraoralTMJExam.musclePalpation.temporalisLeft) 
+            muscleParts.push(`Temporalis Left: ${note.extraoralTMJExam.musclePalpation.temporalisLeft}`)
+          if (note.extraoralTMJExam.musclePalpation.masseterRight) 
+            muscleParts.push(`Masseter Right: ${note.extraoralTMJExam.musclePalpation.masseterRight}`)
+          if (note.extraoralTMJExam.musclePalpation.masseterLeft) 
+            muscleParts.push(`Masseter Left: ${note.extraoralTMJExam.musclePalpation.masseterLeft}`)
+          if (muscleParts.length > 0) tmjParts.push(`Muscle Palpation:\n${muscleParts.join('\n')}`)
+        }
+        if (note.extraoralTMJExam.tmjEvaluation) 
+          tmjParts.push(`TMJ Evaluation: ${note.extraoralTMJExam.tmjEvaluation}`)
+      }
+      if (tmjParts.length > 0) {
+        parts.push(`Extraoral & TMJ Examination:\n\n${tmjParts.join('\n\n')}`)
+      }
+    }
+    
+    // Diagnosis
+    if (note.diagnosis) {
+      addSection('assessment', 'Diagnosis', note.diagnosis)
+    }
+    
+    // Treatment Provided
+    if (note.treatmentProvided) {
+      addSection('diagnosticProcedures', 'Treatment Provided', note.treatmentProvided)
+    }
+    
+    // Treatment Plan
+    if (note.treatmentPlan) {
+      addSection('plan', 'Treatment Plan', note.treatmentPlan)
+    }
+    
+    // Prognosis
+    if (note.prognosis) {
+      addSection('patientResponse', 'Prognosis', note.prognosis)
+    }
+    
+    // Legacy sections (for backward compatibility)
+    if (note.intraOralExamination) {
+      addSection('intraOralExamination', 'Intraoral Examination', note.intraOralExamination)
+    }
+    if (note.diagnosticProcedures) {
+      addSection('diagnosticProcedures', 'Diagnostic Procedures', note.diagnosticProcedures)
+    }
+    if (note.assessment) {
+      addSection('assessment', 'Assessment', note.assessment)
+    }
+    if (note.educationRecommendations) {
+      addSection('educationRecommendations', 'Education & Recommendations', note.educationRecommendations)
+    }
+    if (note.patientResponse) {
+      addSection('patientResponse', 'Patient Response', note.patientResponse)
+    }
+    if (note.plan) {
+      addSection('plan', 'Plan', note.plan)
+    }
+    
+    return parts.join('\n\n')
   }
 
   return (
@@ -1935,11 +1961,12 @@ function MainDashboard({ user, onLogout, theme, onToggleTheme }) {
 
       {showCopyModal && (
         <div className="modal-overlay" onClick={() => setShowCopyModal(false)}>
-          <div className="modal-content copy-modal" onClick={(e) => e.stopPropagation()}>
-            <textarea className="copy-preview-text" value={copyPreview} onChange={(e) => setCopyPreview(e.target.value)} placeholder="Nothing selected yet" style={{ width: '100%', minHeight: '300px', padding: '14px', border: '1px solid var(--border)', borderRadius: '10px', background: 'var(--surface2)', color: 'var(--text)', fontFamily: 'inherit', fontSize: '14px', resize: 'vertical' }} />
+          <div className="modal-content copy-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px', width: '90%', maxHeight: '85vh' }}>
+            <h2>📋 Copy Note</h2>
+            <textarea className="copy-preview-text" value={copyPreview} onChange={(e) => setCopyPreview(e.target.value)} placeholder="Nothing selected yet" style={{ width: '100%', minHeight: '400px', padding: '14px', border: '1px solid var(--border)', borderRadius: '10px', background: 'var(--surface2)', color: 'var(--text)', fontFamily: 'inherit', fontSize: '14px', resize: 'vertical' }} />
             <div className="note-actions" style={{ marginTop: '12px' }}>
               <button className="btn btn-copy" onClick={async () => { try { await navigator.clipboard.writeText(copyPreview); pushToast('Copied!', 'success'); } catch { } }}>Copy</button>
-              <button className="btn btn-save" onClick={() => { navigator.clipboard.writeText(copyPreview).then(() => { setShowCopyModal(false); pushToast('Copied!', 'success'); }); }}>Copy & Close</button>
+              <button className="btn btn-save" onClick={() => { navigator.clipboard.writeText(copyPreview).then(() => { setShowCopyModal(false); pushToast('Copied & Closed!', 'success'); }); }}>Copy & Close</button>
               <button className="btn btn-ghost" onClick={() => setShowCopyModal(false)}>Cancel</button>
             </div>
           </div>
